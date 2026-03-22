@@ -1,3 +1,5 @@
+Currently live at: https://interactive-research-agent.vercel.app/
+
 # Interactive Research Agent
 
 Interactive Research Agent lets you upload a research paper PDF, highlight any passage, and get an AI explanation with a Mermaid diagram. The app is a lightweight MVP built with Next.js App Router, in-memory storage, and OpenAI streaming responses.
