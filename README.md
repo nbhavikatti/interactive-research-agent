@@ -30,4 +30,4 @@ Interactive Research Agent lets you upload a research paper PDF, highlight any p
 
 ## Screenshot
 
-Screenshot placeholder
+![Interactive Research Agent — paper viewer with AI explanation panel](public/screenshot.png)
