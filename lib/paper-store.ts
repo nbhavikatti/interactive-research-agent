@@ -1,5 +1,4 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
-import path from "path";
+import { put, head, list } from "@vercel/blob";
 
 export interface StoredPaperPage {
   pageNum: number;
@@ -9,44 +8,48 @@ export interface StoredPaperPage {
 export interface StoredPaper {
   id: string;
   filename: string;
-  filePath: string;
+  pdfBlobUrl: string;
   title: string;
   pages: StoredPaperPage[];
 }
 
-class PaperStore {
-  private papers = new Map<string, StoredPaper>();
-  private storeDir = path.join("/tmp", "uploads");
+function metadataPath(id: string) {
+  return `papers/${id}/metadata.json`;
+}
 
-  async set(id: string, paper: StoredPaper) {
-    this.papers.set(id, paper);
-    await mkdir(this.storeDir, { recursive: true });
-    await writeFile(this.getMetadataPath(id), JSON.stringify(paper), "utf8");
-  }
+function pdfPath(id: string) {
+  return `papers/${id}/file.pdf`;
+}
+
+export const paperStore = {
+  async savePdf(id: string, buffer: Buffer, filename: string): Promise<string> {
+    const blob = await put(pdfPath(id), buffer, {
+      access: "public",
+      contentType: "application/pdf",
+      addRandomSuffix: false,
+    });
+    return blob.url;
+  },
+
+  async set(id: string, paper: StoredPaper): Promise<void> {
+    await put(metadataPath(id), JSON.stringify(paper), {
+      access: "public",
+      contentType: "application/json",
+      addRandomSuffix: false,
+    });
+  },
 
   async get(id: string): Promise<StoredPaper | undefined> {
-    const cached = this.papers.get(id);
-    if (cached) {
-      return cached;
-    }
-
     try {
-      const raw = await readFile(this.getMetadataPath(id), "utf8");
-      const paper = JSON.parse(raw) as StoredPaper;
-      this.papers.set(id, paper);
-      return paper;
+      const blobList = await list({ prefix: metadataPath(id) });
+      const match = blobList.blobs[0];
+      if (!match) return undefined;
+
+      const res = await fetch(match.url);
+      if (!res.ok) return undefined;
+      return (await res.json()) as StoredPaper;
     } catch {
       return undefined;
     }
-  }
-
-  async has(id: string): Promise<boolean> {
-    return (await this.get(id)) !== undefined;
-  }
-
-  private getMetadataPath(id: string) {
-    return path.join(this.storeDir, `${id}.json`);
-  }
-}
-
-export const paperStore = new PaperStore();
+  },
+};

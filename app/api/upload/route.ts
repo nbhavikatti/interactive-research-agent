@@ -1,6 +1,4 @@
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { parsePdf } from "@/lib/pdf-parser";
 import { paperStore } from "@/lib/paper-store";
@@ -21,18 +19,17 @@ export async function POST(req: NextRequest) {
     }
 
     const id = randomUUID();
-    const uploadDir = path.join("/tmp", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-
-    const filePath = path.join(uploadDir, `${id}.pdf`);
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filePath, buffer);
 
-    const parsed = await parsePdf(buffer);
+    const [parsed, pdfBlobUrl] = await Promise.all([
+      parsePdf(buffer),
+      paperStore.savePdf(id, buffer, file.name),
+    ]);
+
     await paperStore.set(id, {
       id,
       filename: file.name,
-      filePath,
+      pdfBlobUrl,
       title: parsed.title,
       pages: parsed.pages,
     });
