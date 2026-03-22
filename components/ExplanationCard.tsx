@@ -3,6 +3,7 @@
 interface ExplanationCardProps {
   explanation: {
     summary: string;
+    coreIdea: string;
     intuition: string;
     breakdown: string;
   };
@@ -17,6 +18,15 @@ export function ExplanationCard({ explanation }: ExplanationCardProps) {
         </p>
         <p className="mt-3 text-base leading-7 text-gray-800">
           {explanation.summary}
+        </p>
+      </section>
+
+      <section className="border-b border-gray-100 pb-5 pt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+          Core Idea
+        </p>
+        <p className="mt-3 text-base leading-7 text-gray-800">
+          {explanation.coreIdea}
         </p>
       </section>
 

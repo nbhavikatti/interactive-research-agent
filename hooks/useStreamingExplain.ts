@@ -5,6 +5,7 @@ import { useState } from "react";
 export interface ExplanationResult {
   explanation: {
     summary: string;
+    coreIdea: string;
     intuition: string;
     breakdown: string;
   };
@@ -120,6 +121,7 @@ function fallbackResult(raw: string): ExplanationResult {
   return {
     explanation: {
       summary: raw.trim() || "The model returned an empty response.",
+      coreIdea: "The response could not be parsed into the expected structure.",
       intuition: "The response could not be parsed into the expected structure.",
       breakdown: "Try again to generate a structured explanation and diagram.",
     },

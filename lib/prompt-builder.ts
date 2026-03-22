@@ -30,6 +30,7 @@ Respond with a JSON object (no markdown code fences, just raw JSON) with this ex
 {
   "explanation": {
     "summary": "A 1-2 sentence plain-language summary of what this passage means",
+    "coreIdea": "The single most important takeaway from this passage in 1-2 sentences of plain English. Focus on conceptual clarity over completeness. Avoid jargon unless necessary. Answer: what is the main point of this paragraph? If the passage is already simple, still distill it into a concise takeaway.",
     "intuition": "An intuitive explanation that helps build understanding. Use analogies if helpful. 2-4 sentences.",
     "breakdown": "A detailed step-by-step breakdown of the passage. For math/formulas, explain each term. For concepts, explain the logic. 3-6 sentences."
   },

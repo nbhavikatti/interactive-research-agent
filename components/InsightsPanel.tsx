@@ -10,6 +10,7 @@ interface InsightsPanelProps {
   insight?: {
     explanation: {
       summary: string;
+      coreIdea: string;
       intuition: string;
       breakdown: string;
     };

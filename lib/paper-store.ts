@@ -1,4 +1,4 @@
-import { put, head, list } from "@vercel/blob";
+import { put, list } from "@vercel/blob";
 
 export interface StoredPaperPage {
   pageNum: number;
@@ -22,7 +22,7 @@ function pdfPath(id: string) {
 }
 
 export const paperStore = {
-  async savePdf(id: string, buffer: Buffer, filename: string): Promise<string> {
+  async savePdf(id: string, buffer: Buffer): Promise<string> {
     const blob = await put(pdfPath(id), buffer, {
       access: "public",
       contentType: "application/pdf",
