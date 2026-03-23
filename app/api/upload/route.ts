@@ -2,8 +2,15 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { parsePdf } from "@/lib/pdf-parser";
 import { paperStore } from "@/lib/paper-store";
+import { rateLimit } from "@/lib/rate-limit";
+
+// 10 uploads per IP per 15 minutes
+const RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, RATE_LIMIT);
+  if (limited) return limited;
+
   try {
     const formData = await req.formData();
     const file = formData.get("file");

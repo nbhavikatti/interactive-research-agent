@@ -2,8 +2,15 @@ import { NextRequest } from "next/server";
 import { streamExplanation } from "@/lib/llm-client";
 import { paperStore } from "@/lib/paper-store";
 import { buildExplainPrompt } from "@/lib/prompt-builder";
+import { rateLimit } from "@/lib/rate-limit";
+
+// 20 explain requests per IP per 15 minutes
+const RATE_LIMIT = { maxRequests: 20, windowMs: 15 * 60 * 1000 };
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, RATE_LIMIT);
+  if (limited) return limited;
+
   try {
     const { paperId, selectedText, pageNumber } = await req.json();
 
