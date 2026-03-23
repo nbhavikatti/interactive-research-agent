@@ -126,7 +126,31 @@ function tryParse(text: string): ExplanationResult | null {
     if (obj?.explanation && obj?.diagram) return obj as ExplanationResult;
     return null;
   } catch {
-    return null;
+    // The LLM sometimes outputs actual newline/tab characters inside JSON
+    // string values. These are invalid in JSON strings and must be escaped.
+    // Re-escape control characters inside string values and retry.
+    try {
+      const fixed = text.replace(
+        /"(?:[^"\\]|\\.)*"|[^"]+/g,
+        (match) => {
+          if (match.startsWith('"') && match.endsWith('"')) {
+            // This is a JSON string token — re-escape control chars within it
+            const inner = match.slice(1, -1);
+            const escaped = inner
+              .replace(/(?<!\\)\n/g, "\\n")
+              .replace(/(?<!\\)\r/g, "\\r")
+              .replace(/(?<!\\)\t/g, "\\t");
+            return `"${escaped}"`;
+          }
+          return match;
+        },
+      );
+      const obj = JSON.parse(fixed);
+      if (obj?.explanation && obj?.diagram) return obj as ExplanationResult;
+      return null;
+    } catch {
+      return null;
+    }
   }
 }
 
