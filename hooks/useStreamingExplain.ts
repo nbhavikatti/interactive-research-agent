@@ -101,19 +101,32 @@ export function useStreamingExplain() {
 }
 
 function safeParseResult(raw: string): ExplanationResult {
-  try {
-    return JSON.parse(raw) as ExplanationResult;
-  } catch {
-    const cleaned = raw.match(/\{[\s\S]*\}/)?.[0];
-    if (cleaned) {
-      try {
-        return JSON.parse(cleaned) as ExplanationResult;
-      } catch {
-        return fallbackResult(raw);
-      }
-    }
+  // Try raw first
+  const parsed = tryParse(raw);
+  if (parsed) return parsed;
 
-    return fallbackResult(raw);
+  // Strip markdown code fences (```json ... ```)
+  const fenceStripped = raw.replace(/^```(?:json)?\s*\n?/m, "").replace(/\n?```\s*$/m, "");
+  const parsed2 = tryParse(fenceStripped);
+  if (parsed2) return parsed2;
+
+  // Extract outermost { ... }
+  const match = fenceStripped.match(/\{[\s\S]*\}/);
+  if (match) {
+    const parsed3 = tryParse(match[0]);
+    if (parsed3) return parsed3;
+  }
+
+  return fallbackResult(raw);
+}
+
+function tryParse(text: string): ExplanationResult | null {
+  try {
+    const obj = JSON.parse(text);
+    if (obj?.explanation && obj?.diagram) return obj as ExplanationResult;
+    return null;
+  } catch {
+    return null;
   }
 }
 
