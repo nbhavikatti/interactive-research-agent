@@ -126,32 +126,45 @@ function tryParse(text: string): ExplanationResult | null {
     if (obj?.explanation && obj?.diagram) return obj as ExplanationResult;
     return null;
   } catch {
-    // The LLM sometimes outputs actual newline/tab characters inside JSON
-    // string values. These are invalid in JSON strings and must be escaped.
-    // Re-escape control characters inside string values and retry.
     try {
-      const fixed = text.replace(
-        /"(?:[^"\\]|\\.)*"|[^"]+/g,
-        (match) => {
-          if (match.startsWith('"') && match.endsWith('"')) {
-            // This is a JSON string token — re-escape control chars within it
-            const inner = match.slice(1, -1);
-            const escaped = inner
-              .replace(/(?<!\\)\n/g, "\\n")
-              .replace(/(?<!\\)\r/g, "\\r")
-              .replace(/(?<!\\)\t/g, "\\t");
-            return `"${escaped}"`;
-          }
-          return match;
-        },
-      );
-      const obj = JSON.parse(fixed);
+      const obj = JSON.parse(escapeControlCharsInStrings(text));
       if (obj?.explanation && obj?.diagram) return obj as ExplanationResult;
       return null;
     } catch {
       return null;
     }
   }
+}
+
+/**
+ * Walk through JSON text character by character. When inside a quoted
+ * string, re-escape any raw control characters (newline, tab, etc.)
+ * that would make JSON.parse choke.
+ */
+function escapeControlCharsInStrings(text: string): string {
+  let result = "";
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    // Toggle string state on unescaped quotes
+    if (ch === '"') {
+      let backslashes = 0;
+      for (let j = i - 1; j >= 0 && text[j] === "\\"; j--) backslashes++;
+      if (backslashes % 2 === 0) inString = !inString;
+      result += ch;
+      continue;
+    }
+    // Escape control characters only inside strings
+    if (inString && ch.charCodeAt(0) < 0x20) {
+      if (ch === "\n") result += "\\n";
+      else if (ch === "\r") result += "\\r";
+      else if (ch === "\t") result += "\\t";
+      else result += "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0");
+    } else {
+      result += ch;
+    }
+  }
+  return result;
 }
 
 function fallbackResult(raw: string): ExplanationResult {
