@@ -48,13 +48,11 @@ export function useStreamingExplain() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let accumulated = "";
+      let serverResult: ExplanationResult | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          break;
-        }
+        if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
         const events = buffer.split("\n\n");
@@ -67,25 +65,36 @@ export function useStreamingExplain() {
             .map((line) => line.replace(/^data:\s?/, ""));
 
           for (const line of lines) {
-            if (line === "[DONE]") {
+            if (line === "[DONE]") continue;
+
+            let parsed: Record<string, unknown>;
+            try {
+              parsed = JSON.parse(line);
+            } catch {
               continue;
             }
 
-            const parsed = JSON.parse(line) as { text?: string; error?: string };
             if (parsed.error) {
-              throw new Error(parsed.error);
+              throw new Error(parsed.error as string);
+            }
+
+            // Server sends the parsed result as the final event
+            if (parsed.result) {
+              serverResult = parsed.result as ExplanationResult;
             }
 
             if (parsed.text) {
-              accumulated += parsed.text;
-              setRawResponse(accumulated);
+              setRawResponse((prev) => prev + (parsed.text as string));
             }
           }
         }
       }
 
-      const parsedResult = safeParseResult(accumulated);
-      setResult(parsedResult);
+      if (serverResult?.explanation && serverResult?.diagram) {
+        setResult(serverResult);
+      } else {
+        throw new Error("Could not parse the explanation.");
+      }
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -98,86 +107,4 @@ export function useStreamingExplain() {
   };
 
   return { isLoading, result, error, rawResponse, requestExplanation };
-}
-
-function safeParseResult(raw: string): ExplanationResult {
-  // Try raw first
-  const parsed = tryParse(raw);
-  if (parsed) return parsed;
-
-  // Strip markdown code fences (```json ... ```)
-  const fenceStripped = raw.replace(/^```(?:json)?\s*\n?/m, "").replace(/\n?```\s*$/m, "");
-  const parsed2 = tryParse(fenceStripped);
-  if (parsed2) return parsed2;
-
-  // Extract outermost { ... }
-  const match = fenceStripped.match(/\{[\s\S]*\}/);
-  if (match) {
-    const parsed3 = tryParse(match[0]);
-    if (parsed3) return parsed3;
-  }
-
-  return fallbackResult(raw);
-}
-
-function tryParse(text: string): ExplanationResult | null {
-  try {
-    const obj = JSON.parse(text);
-    if (obj?.explanation && obj?.diagram) return obj as ExplanationResult;
-    return null;
-  } catch {
-    try {
-      const obj = JSON.parse(escapeControlCharsInStrings(text));
-      if (obj?.explanation && obj?.diagram) return obj as ExplanationResult;
-      return null;
-    } catch {
-      return null;
-    }
-  }
-}
-
-/**
- * Walk through JSON text character by character. When inside a quoted
- * string, re-escape any raw control characters (newline, tab, etc.)
- * that would make JSON.parse choke.
- */
-function escapeControlCharsInStrings(text: string): string {
-  let result = "";
-  let inString = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    // Toggle string state on unescaped quotes
-    if (ch === '"') {
-      let backslashes = 0;
-      for (let j = i - 1; j >= 0 && text[j] === "\\"; j--) backslashes++;
-      if (backslashes % 2 === 0) inString = !inString;
-      result += ch;
-      continue;
-    }
-    // Escape control characters only inside strings
-    if (inString && ch.charCodeAt(0) < 0x20) {
-      if (ch === "\n") result += "\\n";
-      else if (ch === "\r") result += "\\r";
-      else if (ch === "\t") result += "\\t";
-      else result += "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0");
-    } else {
-      result += ch;
-    }
-  }
-  return result;
-}
-
-function fallbackResult(raw: string): ExplanationResult {
-  return {
-    explanation: {
-      summary: raw.trim() || "The model returned an empty response.",
-      coreIdea: "The response could not be parsed into the expected structure.",
-      intuition: "The response could not be parsed into the expected structure.",
-      breakdown: "Try again to generate a structured explanation and diagram.",
-    },
-    diagram: {
-      type: "mermaid",
-      code: "graph TD\nA[Retry Request] --> B[Need Valid JSON]",
-    },
-  };
 }
