@@ -148,11 +148,6 @@ export async function POST(req: NextRequest) {
 async function classifyWithTimeout(
   promptInput: Parameters<typeof buildClassifierPrompt>[0],
 ): Promise<ClassifierResult> {
-  const defaultResult: ClassifierResult = {
-    route: "static_diagram",
-    reason: "Classification timed out or failed; defaulting to static diagram",
-  };
-
   try {
     const classifierPrompt = buildClassifierPrompt(promptInput);
 
@@ -163,10 +158,7 @@ async function classifyWithTimeout(
       ),
     ]);
 
-    console.log("[viz-router] Raw classifier response:", result);
-
     const parsed = serverParseResult(result);
-    console.log("[viz-router] Parsed classifier result:", parsed);
 
     if (
       parsed &&
@@ -176,8 +168,12 @@ async function classifyWithTimeout(
       return parsed as unknown as ClassifierResult;
     }
 
-    console.warn("[viz-router] Classifier response did not match expected shape");
-    return defaultResult;
+    // Debug: surface the actual response in the UI so we can see what went wrong
+    const preview = result.slice(0, 300).replace(/\n/g, " ");
+    return {
+      route: "static_diagram" as const,
+      reason: `Parse failed. Raw: ${preview}`,
+    };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : "";
