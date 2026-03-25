@@ -41,10 +41,19 @@ export async function generateCompletion(
   });
 
   let result = "";
+  const eventTypes: string[] = [];
   for await (const event of stream) {
+    eventTypes.push(event.type);
     if (event.type === "response.output_text.delta") {
       result += event.delta;
     }
+  }
+
+  if (!result) {
+    console.error(
+      "[generateCompletion] Empty result. Event types seen:",
+      eventTypes.join(", "),
+    );
   }
 
   return result;
