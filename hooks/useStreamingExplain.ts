@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { VisualizationRoute, AnimationSpec } from "@/lib/types";
 
 export interface ExplanationResult {
   explanation: {
@@ -9,10 +10,21 @@ export interface ExplanationResult {
     intuition: string;
     breakdown: string;
   };
-  diagram: {
-    type: string;
-    code: string;
-  };
+  diagram:
+    | {
+        type: "mermaid";
+        code: string;
+      }
+    | {
+        type: "manim";
+        animation_spec: AnimationSpec;
+        code: string;
+      };
+}
+
+export interface ClassificationInfo {
+  route: VisualizationRoute;
+  reason: string;
 }
 
 export function useStreamingExplain() {
@@ -20,6 +32,9 @@ export function useStreamingExplain() {
   const [result, setResult] = useState<ExplanationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rawResponse, setRawResponse] = useState("");
+  const [classification, setClassification] =
+    useState<ClassificationInfo | null>(null);
+  const [isManimGenerating, setIsManimGenerating] = useState(false);
 
   const requestExplanation = async (
     paperId: string,
@@ -30,6 +45,8 @@ export function useStreamingExplain() {
     setError(null);
     setResult(null);
     setRawResponse("");
+    setClassification(null);
+    setIsManimGenerating(false);
 
     try {
       const response = await fetch("/api/explain", {
@@ -78,9 +95,20 @@ export function useStreamingExplain() {
               throw new Error(parsed.error as string);
             }
 
+            // Classification info from the router
+            if (parsed.classification) {
+              setClassification(parsed.classification as ClassificationInfo);
+            }
+
+            // Status updates (e.g., "generating_manim_code")
+            if (parsed.status === "generating_manim_code") {
+              setIsManimGenerating(true);
+            }
+
             // Server sends the parsed result as the final event
             if (parsed.result) {
               serverResult = parsed.result as ExplanationResult;
+              setIsManimGenerating(false);
             }
 
             if (parsed.text) {
@@ -106,5 +134,13 @@ export function useStreamingExplain() {
     }
   };
 
-  return { isLoading, result, error, rawResponse, requestExplanation };
+  return {
+    isLoading,
+    result,
+    error,
+    rawResponse,
+    classification,
+    isManimGenerating,
+    requestExplanation,
+  };
 }

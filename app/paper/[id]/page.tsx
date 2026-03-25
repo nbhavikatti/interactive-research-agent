@@ -19,7 +19,14 @@ export default function PaperWorkspacePage() {
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] =
     useState<PendingSelection | null>(null);
-  const { isLoading, result, error, requestExplanation } = useStreamingExplain();
+  const {
+    isLoading,
+    result,
+    error,
+    classification,
+    isManimGenerating,
+    requestExplanation,
+  } = useStreamingExplain();
 
   const panelState = viewerError
     ? "error"
@@ -72,8 +79,10 @@ export default function PaperWorkspacePage() {
       }
       right={
         <InsightsPanel
+          classification={classification}
           error={error}
           insight={result}
+          isManimGenerating={isManimGenerating}
           onRetry={() => {
             if (pendingSelection) {
               void runExplanation(pendingSelection);

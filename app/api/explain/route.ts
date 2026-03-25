@@ -1,11 +1,20 @@
 import { NextRequest } from "next/server";
-import { streamExplanation } from "@/lib/llm-client";
+import { streamExplanation, generateCompletion } from "@/lib/llm-client";
 import { paperStore } from "@/lib/paper-store";
-import { buildExplainPrompt } from "@/lib/prompt-builder";
+import {
+  buildExplainPrompt,
+  buildExplainWithManimPrompt,
+  buildClassifierPrompt,
+  buildManimCodePrompt,
+} from "@/lib/prompt-builder";
 import { rateLimit } from "@/lib/rate-limit";
+import type { ClassifierResult, AnimationSpec } from "@/lib/types";
 
 // 20 explain requests per IP per 15 minutes
 const RATE_LIMIT = { maxRequests: 20, windowMs: 15 * 60 * 1000 };
+
+// Timeout for the classifier step (ms)
+const CLASSIFIER_TIMEOUT_MS = 6_000;
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, RATE_LIMIT);
@@ -34,15 +43,34 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const prompt = buildExplainPrompt({
+    const promptInput = {
       pages: paper.pages,
       selectedText,
       pageNumber,
-    });
+    };
+
+    // Step 1: Classify the visualization route
+    const classification = await classifyWithTimeout(promptInput);
+    console.log(
+      `[viz-router] route=${classification.route} reason="${classification.reason}"`,
+    );
+
+    // Step 2: Build the appropriate prompt based on route
+    const prompt =
+      classification.route === "manim_animation"
+        ? buildExplainWithManimPrompt(promptInput)
+        : buildExplainPrompt(promptInput);
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        // Send classification info to client immediately
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ classification })}\n\n`,
+          ),
+        );
+
         let accumulated = "";
         try {
           for await (const chunk of streamExplanation(prompt)) {
@@ -52,9 +80,35 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // Parse on the server so the client never has to deal with
-          // control-character escaping issues from the SSE round-trip.
           const parsed = serverParseResult(accumulated);
+
+          // Step 3: If manim route, generate actual Manim code from the spec
+          if (
+            classification.route === "manim_animation" &&
+            parsed?.diagram &&
+            (parsed.diagram as Record<string, unknown>).type === "manim"
+          ) {
+            const diagram = parsed.diagram as Record<string, unknown>;
+            const spec = diagram.animation_spec as AnimationSpec | undefined;
+
+            if (spec) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ status: "generating_manim_code" })}\n\n`,
+                ),
+              );
+
+              try {
+                const manimCode = await generateManimCode(spec);
+                diagram.code = manimCode;
+              } catch (codeGenError) {
+                console.error("[viz-router] Manim code generation failed:", codeGenError);
+                // Fallback: keep the placeholder code, frontend will handle gracefully
+                diagram.code = "";
+              }
+            }
+          }
+
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({ result: parsed })}\n\n`,
@@ -85,6 +139,71 @@ export async function POST(req: NextRequest) {
       status: 400,
     });
   }
+}
+
+/**
+ * Classify the visualization type with a timeout. Falls back to static_diagram
+ * if the classifier fails or times out.
+ */
+async function classifyWithTimeout(
+  promptInput: Parameters<typeof buildClassifierPrompt>[0],
+): Promise<ClassifierResult> {
+  const defaultResult: ClassifierResult = {
+    route: "static_diagram",
+    reason: "Classification timed out or failed; defaulting to static diagram",
+  };
+
+  try {
+    const classifierPrompt = buildClassifierPrompt(promptInput);
+
+    const result = await Promise.race([
+      generateCompletion(classifierPrompt, 200),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), CLASSIFIER_TIMEOUT_MS),
+      ),
+    ]);
+
+    const parsed = serverParseResult(result);
+    if (
+      parsed &&
+      (parsed.route === "static_diagram" || parsed.route === "manim_animation") &&
+      typeof parsed.reason === "string"
+    ) {
+      return parsed as unknown as ClassifierResult;
+    }
+
+    return defaultResult;
+  } catch (err) {
+    console.error("[viz-router] Classification failed:", err);
+    return defaultResult;
+  }
+}
+
+/**
+ * Generate Manim code from an animation spec. Timeout of 30s.
+ */
+async function generateManimCode(spec: AnimationSpec): Promise<string> {
+  const prompt = buildManimCodePrompt(spec);
+
+  const result = await Promise.race([
+    generateCompletion(prompt, 2000),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), 30_000),
+    ),
+  ]);
+
+  const parsed = serverParseResult(result);
+  if (parsed && typeof parsed.manim_code === "string") {
+    return parsed.manim_code;
+  }
+
+  // Try to extract raw python code if JSON parsing failed
+  const codeMatch = result.match(/```python\n?([\s\S]*?)```/);
+  if (codeMatch) {
+    return codeMatch[1].trim();
+  }
+
+  return result.trim();
 }
 
 /**
