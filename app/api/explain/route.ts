@@ -14,7 +14,7 @@ import type { ClassifierResult, AnimationSpec } from "@/lib/types";
 const RATE_LIMIT = { maxRequests: 20, windowMs: 15 * 60 * 1000 };
 
 // Timeout for the classifier step (ms)
-const CLASSIFIER_TIMEOUT_MS = 6_000;
+const CLASSIFIER_TIMEOUT_MS = 15_000;
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, RATE_LIMIT);
