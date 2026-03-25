@@ -2,36 +2,16 @@
 
 import { DiagramRenderer } from "@/components/DiagramRenderer";
 import { ExplanationCard } from "@/components/ExplanationCard";
-import { ManimRenderer } from "@/components/ManimRenderer";
 import { SkeletonLoader } from "@/components/SkeletonLoader";
-import type { ClassificationInfo } from "@/hooks/useStreamingExplain";
-import type { AnimationSpec } from "@/lib/types";
+import type { ExplainViewModel } from "@/lib/types";
 
 interface InsightsPanelProps {
   state: "empty" | "loading" | "result" | "error";
   selectedText?: string;
-  insight?: {
-    explanation: {
-      summary: string;
-      coreIdea: string;
-      intuition: string;
-      breakdown: string;
-    };
-    diagram:
-      | {
-          type: string;
-          code: string;
-        }
-      | {
-          type: "manim";
-          animation_spec: AnimationSpec;
-          code: string;
-        };
-  } | null;
+  insight?: ExplainViewModel | null;
   error?: string | null;
   onRetry?: () => void;
-  classification?: ClassificationInfo | null;
-  isManimGenerating?: boolean;
+  statusMessage?: string | null;
 }
 
 export function InsightsPanel({
@@ -40,8 +20,7 @@ export function InsightsPanel({
   insight,
   error,
   onRetry,
-  classification,
-  isManimGenerating,
+  statusMessage,
 }: InsightsPanelProps) {
   const quote = selectedText ? (
     <blockquote className="rounded-2xl border-l-4 border-indigo-500 bg-indigo-50 px-4 py-3 text-sm leading-6 text-indigo-900">
@@ -66,24 +45,31 @@ export function InsightsPanel({
   }
 
   if (state === "loading") {
+    if (insight?.explanation) {
+      return (
+        <div className="space-y-5 p-6 transition-opacity duration-150">
+          {quote}
+          {statusMessage && (
+            <div className="flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-700">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600" />
+              {statusMessage}
+            </div>
+          )}
+          <ExplanationCard explanation={insight.explanation} />
+          {insight.diagram?.type === "mermaid" ? (
+            <DiagramRenderer mermaidCode={insight.diagram.code} />
+          ) : null}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-5 p-6 transition-opacity duration-150">
         {quote}
-        {classification && (
-          <div className="rounded-xl bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-500">
-            <span className="font-medium text-gray-700">
-              {classification.route === "manim_animation"
-                ? "Generating animation..."
-                : "Generating diagram..."}
-            </span>
-            {" — "}
-            {classification.reason}
-          </div>
-        )}
-        {isManimGenerating && (
+        {statusMessage && (
           <div className="flex items-center gap-2 rounded-xl bg-purple-50 border border-purple-200 px-3 py-2 text-xs text-purple-700">
             <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600" />
-            Generating Manim code...
+            {statusMessage}
           </div>
         )}
         <SkeletonLoader />
@@ -115,48 +101,39 @@ export function InsightsPanel({
     return null;
   }
 
-  const isManimDiagram =
-    insight.diagram.type === "manim" &&
-    "animation_spec" in insight.diagram;
-
   return (
     <div className="space-y-5 p-6 transition-opacity duration-150">
       {quote}
 
-      {classification && (
-        <div className="rounded-xl bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-500">
-          <span className="font-medium text-gray-700">
-            {classification.route === "manim_animation"
-              ? "Animated visualization"
-              : "Static diagram"}
-          </span>
-          {" — "}
-          {classification.reason}
+      {statusMessage && (
+        <div className="flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-700">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600" />
+          {statusMessage}
         </div>
       )}
 
-      <ExplanationCard explanation={insight.explanation} />
+      {error ? (
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          <p>{error}</p>
+          {onRetry ? (
+            <button
+              className="mt-4 rounded-full border border-yellow-300 px-4 py-2 font-medium transition hover:bg-yellow-100"
+              onClick={onRetry}
+              type="button"
+            >
+              Retry
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-      {isManimDiagram ? (
-        <ManimRenderer
-          animationSpec={
-            (insight.diagram as { animation_spec: AnimationSpec }).animation_spec
-          }
-          manimCode={insight.diagram.code}
-          videoDataUrl={
-            "video_data_url" in insight.diagram
-              ? (insight.diagram as { video_data_url?: string }).video_data_url
-              : undefined
-          }
-          renderError={
-            "render_error" in insight.diagram
-              ? (insight.diagram as { render_error?: string }).render_error
-              : undefined
-          }
-        />
-      ) : (
+      {insight.explanation ? (
+        <ExplanationCard explanation={insight.explanation} />
+      ) : null}
+
+      {insight.diagram?.type === "mermaid" ? (
         <DiagramRenderer mermaidCode={insight.diagram.code} />
-      )}
+      ) : null}
     </div>
   );
 }

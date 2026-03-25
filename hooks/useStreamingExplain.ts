@@ -1,42 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import type { VisualizationRoute, AnimationSpec } from "@/lib/types";
+import type {
+  ExplainViewModel,
+  ExplanationContent,
+} from "@/lib/types";
 
-export interface ExplanationResult {
-  explanation: {
-    summary: string;
-    coreIdea: string;
-    intuition: string;
-    breakdown: string;
+type ExplainStreamEvent =
+  | {
+      type: "explanation_ready";
+      explanation: ExplanationContent;
+      diagram?: { type: "mermaid"; code: string };
+    }
+  | {
+      type: "error";
+      stage: "generation" | "request";
+      message: string;
+    }
+  | { type: "done" };
+
+function createEmptyResult(): ExplainViewModel {
+  return {
+    explanation: null,
+    diagram: null,
   };
-  diagram:
-    | {
-        type: "mermaid";
-        code: string;
-      }
-    | {
-        type: "manim";
-        animation_spec: AnimationSpec;
-        code: string;
-        video_data_url?: string;
-        render_error?: string;
-      };
-}
-
-export interface ClassificationInfo {
-  route: VisualizationRoute;
-  reason: string;
 }
 
 export function useStreamingExplain() {
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<ExplanationResult | null>(null);
+  const [result, setResult] = useState<ExplainViewModel | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [rawResponse, setRawResponse] = useState("");
-  const [classification, setClassification] =
-    useState<ClassificationInfo | null>(null);
-  const [isManimGenerating, setIsManimGenerating] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const requestExplanation = async (
     paperId: string,
@@ -46,9 +40,7 @@ export function useStreamingExplain() {
     setIsLoading(true);
     setError(null);
     setResult(null);
-    setRawResponse("");
-    setClassification(null);
-    setIsManimGenerating(false);
+    setStatusMessage("Generating explanation and diagram...");
 
     try {
       const response = await fetch("/api/explain", {
@@ -67,7 +59,6 @@ export function useStreamingExplain() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let serverResult: ExplanationResult | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -84,46 +75,32 @@ export function useStreamingExplain() {
             .map((line) => line.replace(/^data:\s?/, ""));
 
           for (const line of lines) {
-            if (line === "[DONE]") continue;
-
-            let parsed: Record<string, unknown>;
+            let parsed: ExplainStreamEvent;
             try {
-              parsed = JSON.parse(line);
+              parsed = JSON.parse(line) as ExplainStreamEvent;
             } catch {
               continue;
             }
 
-            if (parsed.error) {
-              throw new Error(parsed.error as string);
+            if (parsed.type === "explanation_ready") {
+              setResult((prev) => ({
+                ...(prev ?? createEmptyResult()),
+                explanation: parsed.explanation,
+                diagram: parsed.diagram ?? prev?.diagram ?? null,
+              }));
+              continue;
             }
 
-            // Classification info from the router
-            if (parsed.classification) {
-              setClassification(parsed.classification as ClassificationInfo);
+            if (parsed.type === "error") {
+              setError(parsed.message);
+              continue;
             }
 
-            // Status updates
-            if (parsed.status === "generating_manim_code" || parsed.status === "rendering_video") {
-              setIsManimGenerating(true);
-            }
-
-            // Server sends the parsed result as the final event
-            if (parsed.result) {
-              serverResult = parsed.result as ExplanationResult;
-              setIsManimGenerating(false);
-            }
-
-            if (parsed.text) {
-              setRawResponse((prev) => prev + (parsed.text as string));
+            if (parsed.type === "done") {
+              setStatusMessage(null);
             }
           }
         }
-      }
-
-      if (serverResult?.explanation && serverResult?.diagram) {
-        setResult(serverResult);
-      } else {
-        throw new Error("Could not parse the explanation.");
       }
     } catch (requestError) {
       setError(
@@ -131,6 +108,7 @@ export function useStreamingExplain() {
           ? requestError.message
           : "Could not explain that selection.",
       );
+      setStatusMessage(null);
     } finally {
       setIsLoading(false);
     }
@@ -140,9 +118,7 @@ export function useStreamingExplain() {
     isLoading,
     result,
     error,
-    rawResponse,
-    classification,
-    isManimGenerating,
+    statusMessage,
     requestExplanation,
   };
 }

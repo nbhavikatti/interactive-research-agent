@@ -21,6 +21,8 @@ function pdfPath(id: string) {
   return `papers/${id}/file.pdf`;
 }
 
+const metadataCache = new Map<string, StoredPaper>();
+
 export const paperStore = {
   async savePdf(id: string, buffer: Buffer): Promise<string> {
     const blob = await put(pdfPath(id), buffer, {
@@ -32,6 +34,7 @@ export const paperStore = {
   },
 
   async set(id: string, paper: StoredPaper): Promise<void> {
+    metadataCache.set(id, paper);
     await put(metadataPath(id), JSON.stringify(paper), {
       access: "public",
       contentType: "application/json",
@@ -40,6 +43,9 @@ export const paperStore = {
   },
 
   async get(id: string): Promise<StoredPaper | undefined> {
+    const cached = metadataCache.get(id);
+    if (cached) return cached;
+
     try {
       const blobList = await list({ prefix: metadataPath(id) });
       const match = blobList.blobs[0];
@@ -47,7 +53,9 @@ export const paperStore = {
 
       const res = await fetch(match.url);
       if (!res.ok) return undefined;
-      return (await res.json()) as StoredPaper;
+      const paper = (await res.json()) as StoredPaper;
+      metadataCache.set(id, paper);
+      return paper;
     } catch {
       return undefined;
     }

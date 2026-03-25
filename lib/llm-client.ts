@@ -1,26 +1,170 @@
 import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
+import { z } from "zod";
 
 function getClient(): OpenAI {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 }
 
-export async function* streamExplanation(
+export const explanationContentSchema = z.object({
+  summary: z.string(),
+  coreIdea: z.string(),
+  intuition: z.string(),
+  breakdown: z.string(),
+});
+
+export const mermaidDiagramSchema = z.object({
+  type: z.literal("mermaid"),
+  code: z.string(),
+});
+
+export class StructuredGenerationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StructuredGenerationError";
+  }
+}
+
+export async function generateStructuredObject<T>(
   prompt: string,
-): AsyncGenerator<string> {
+  schema: z.ZodType<T>,
+  schemaName: string,
+  maxTokens: number,
+): Promise<T> {
   const client = getClient();
 
-  const stream = await client.responses.create({
+  const response = await client.responses.create({
     model: "gpt-5",
     input: prompt,
-    max_output_tokens: 2000,
-    stream: true,
+    max_output_tokens: maxTokens,
+    text: {
+      format: zodTextFormat(schema, schemaName),
+    },
   });
 
-  for await (const event of stream) {
-    if (event.type === "response.output_text.delta") {
-      yield event.delta;
+  const rawText = extractResponseText(response);
+  const fallbackParsed = parseStructuredText(rawText, schema);
+  if (fallbackParsed) {
+    return fallbackParsed;
+  }
+
+  throw new StructuredGenerationError(
+    `Model did not return a valid ${schemaName} payload.`,
+  );
+}
+
+export function parseStructuredText<T>(
+  rawText: string,
+  schema: z.ZodType<T>,
+): T | null {
+  if (!rawText) {
+    return null;
+  }
+
+  const candidates = [
+    rawText,
+    rawText
+      .replace(/^```(?:json)?\s*\n?/m, "")
+      .replace(/\n?```\s*$/m, ""),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      return schema.parse(JSON.parse(candidate));
+    } catch {
+      // continue
+    }
+
+    const match = candidate.match(/\{[\s\S]*\}/);
+    if (!match) {
+      continue;
+    }
+
+    try {
+      return schema.parse(JSON.parse(match[0]));
+    } catch {
+      try {
+        return schema.parse(JSON.parse(escapeControlCharsInStrings(match[0])));
+      } catch {
+        // continue
+      }
     }
   }
+
+  return null;
+}
+
+function extractResponseText(
+  response: {
+    output_text?: string;
+    output?: unknown[];
+  },
+): string {
+  if (response.output_text) {
+    return response.output_text;
+  }
+
+  const chunks: string[] = [];
+
+  for (const item of response.output ?? []) {
+    const message = item as {
+      type?: string;
+      content?: unknown[];
+    };
+
+    if (message.type !== "message" || !Array.isArray(message.content)) {
+      continue;
+    }
+
+    for (const block of message.content) {
+      const outputBlock = block as {
+        type?: string;
+        text?: string;
+      };
+
+      if (
+        outputBlock.type === "output_text" &&
+        typeof outputBlock.text === "string"
+      ) {
+        chunks.push(outputBlock.text);
+      }
+    }
+  }
+
+  return chunks.join("");
+}
+
+function escapeControlCharsInStrings(text: string): string {
+  let result = "";
+  let inString = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const ch = text[index];
+
+    if (ch === '"') {
+      let backslashes = 0;
+      for (let scan = index - 1; scan >= 0 && text[scan] === "\\"; scan -= 1) {
+        backslashes += 1;
+      }
+      if (backslashes % 2 === 0) {
+        inString = !inString;
+      }
+      result += ch;
+      continue;
+    }
+
+    if (inString && ch.charCodeAt(0) < 0x20) {
+      if (ch === "\n") result += "\\n";
+      else if (ch === "\r") result += "\\r";
+      else if (ch === "\t") result += "\\t";
+      else result += `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`;
+      continue;
+    }
+
+    result += ch;
+  }
+
+  return result;
 }
 
 /**
@@ -33,54 +177,11 @@ export async function generateCompletion(
   maxTokens: number = 1000,
 ): Promise<string> {
   const client = getClient();
-
-  const stream = await client.responses.create({
+  const response = await client.responses.create({
     model: "gpt-5",
     input: prompt,
     max_output_tokens: maxTokens,
-    stream: true,
   });
 
-  let result = "";
-  let completedOutput: unknown[] | null = null;
-
-  for await (const event of stream) {
-    if (event.type === "response.output_text.delta") {
-      result += event.delta;
-    }
-
-    // Capture the completed response output as fallback
-    if (
-      event.type === "response.completed" ||
-      event.type === "response.incomplete"
-    ) {
-      const resp = (event as unknown as Record<string, unknown>)
-        .response as Record<string, unknown> | undefined;
-      if (resp?.output) {
-        completedOutput = resp.output as unknown[];
-      }
-    }
-  }
-
-  // If streaming deltas worked, use that
-  if (result) {
-    return result;
-  }
-
-  // Fallback: extract text from the completed response output array
-  if (completedOutput) {
-    for (const item of completedOutput) {
-      const obj = item as Record<string, unknown>;
-      if (obj.type === "message" && Array.isArray(obj.content)) {
-        for (const block of obj.content) {
-          const b = block as Record<string, unknown>;
-          if (b.type === "output_text" && typeof b.text === "string") {
-            return b.text;
-          }
-        }
-      }
-    }
-  }
-
-  return "";
+  return response.output_text ?? "";
 }

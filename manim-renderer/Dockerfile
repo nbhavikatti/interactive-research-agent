@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-fonts-recommended \
     texlive-latex-extra \
     texlive-science \
+    dvisvgm \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps

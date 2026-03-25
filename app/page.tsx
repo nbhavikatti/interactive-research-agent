@@ -27,7 +27,11 @@ export default function Home() {
         throw new Error(payload.error ?? "Upload failed");
       }
 
-      router.push(`/paper/${payload.paperId}`);
+      const paperUrl = new URL(`/paper/${payload.paperId}`, window.location.origin);
+      if (payload.pdfBlobUrl) {
+        paperUrl.searchParams.set("pdf", payload.pdfBlobUrl);
+      }
+      router.push(`${paperUrl.pathname}${paperUrl.search}`);
     } catch (uploadError) {
       setError(
         uploadError instanceof Error

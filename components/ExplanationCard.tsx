@@ -1,5 +1,7 @@
 "use client";
 
+import { MathFormattedText } from "@/components/MathFormattedText";
+
 interface ExplanationCardProps {
   explanation: {
     summary: string;
@@ -16,36 +18,40 @@ export function ExplanationCard({ explanation }: ExplanationCardProps) {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
           Summary
         </p>
-        <p className="mt-3 text-base leading-7 text-gray-800">
-          {explanation.summary}
-        </p>
+        <MathFormattedText
+          className="mt-3 text-base leading-7 text-gray-800"
+          content={explanation.summary}
+        />
       </section>
 
       <section className="border-b border-gray-100 pb-5 pt-5">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
           Core Idea
         </p>
-        <p className="mt-3 text-base leading-7 text-gray-800">
-          {explanation.coreIdea}
-        </p>
+        <MathFormattedText
+          className="mt-3 text-base leading-7 text-gray-800"
+          content={explanation.coreIdea}
+        />
       </section>
 
       <section className="pt-5">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
           Intuition
         </p>
-        <p className="mt-3 text-base leading-7 text-gray-700">
-          {explanation.intuition}
-        </p>
+        <MathFormattedText
+          className="mt-3 text-base leading-7 text-gray-700"
+          content={explanation.intuition}
+        />
       </section>
 
       <section className="pt-5">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
           Step-by-step Breakdown
         </p>
-        <div className="mt-3 rounded-2xl bg-gray-50 p-4 text-sm leading-7 text-gray-700">
-          {explanation.breakdown}
-        </div>
+        <MathFormattedText
+          className="mt-3 rounded-2xl bg-gray-50 p-4 text-sm leading-7 text-gray-700"
+          content={explanation.breakdown}
+        />
       </section>
     </div>
   );

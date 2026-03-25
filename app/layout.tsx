@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import "katex/dist/katex.min.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 import "./globals.css";
 

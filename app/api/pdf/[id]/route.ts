@@ -10,20 +10,9 @@ export async function GET(
     return NextResponse.json({ error: "Paper not found" }, { status: 404 });
   }
 
-  try {
-    const res = await fetch(paper.pdfBlobUrl);
-    if (!res.ok) {
-      return NextResponse.json({ error: "Could not read PDF file" }, { status: 500 });
-    }
-
-    const buffer = await res.arrayBuffer();
-    return new NextResponse(buffer, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${paper.filename}"`,
-      },
-    });
-  } catch {
-    return NextResponse.json({ error: "Could not read PDF file" }, { status: 500 });
-  }
+  return NextResponse.redirect(paper.pdfBlobUrl, {
+    headers: {
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
 }

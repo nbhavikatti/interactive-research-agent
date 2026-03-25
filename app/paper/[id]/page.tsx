@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { InsightsPanel } from "@/components/InsightsPanel";
 import { PdfViewer } from "@/components/PdfViewer";
@@ -15,7 +15,9 @@ interface PendingSelection {
 
 export default function PaperWorkspacePage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const paperId = params.id;
+  const initialPdfUrl = searchParams.get("pdf");
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] =
     useState<PendingSelection | null>(null);
@@ -23,19 +25,19 @@ export default function PaperWorkspacePage() {
     isLoading,
     result,
     error,
-    classification,
-    isManimGenerating,
+    statusMessage,
     requestExplanation,
   } = useStreamingExplain();
 
+  const hasInsight = Boolean(result?.explanation || result?.diagram);
   const panelState = viewerError
     ? "error"
-    : isLoading
-      ? "loading"
-      : error
-        ? "error"
-        : result
-          ? "result"
+    : error && !hasInsight
+      ? "error"
+      : hasInsight
+        ? "result"
+        : isLoading
+          ? "loading"
           : "empty";
 
   if (viewerError) {
@@ -59,7 +61,6 @@ export default function PaperWorkspacePage() {
 
   const runExplanation = async (selection: PendingSelection) => {
     setPendingSelection(selection);
-    console.log(selection);
     await requestExplanation(paperId, selection.text, selection.pageNumber);
   };
 
@@ -67,7 +68,7 @@ export default function PaperWorkspacePage() {
     <WorkspaceLayout
       left={
         <PdfViewer
-          pdfUrl={`/api/pdf/${paperId}`}
+          pdfUrl={initialPdfUrl || `/api/pdf/${paperId}`}
           onExplain={runExplanation}
           onLoadError={(loadError) => {
             console.error(loadError);
@@ -79,10 +80,8 @@ export default function PaperWorkspacePage() {
       }
       right={
         <InsightsPanel
-          classification={classification}
           error={error}
           insight={result}
-          isManimGenerating={isManimGenerating}
           onRetry={() => {
             if (pendingSelection) {
               void runExplanation(pendingSelection);
@@ -90,6 +89,7 @@ export default function PaperWorkspacePage() {
           }}
           selectedText={pendingSelection?.text}
           state={panelState}
+          statusMessage={statusMessage}
         />
       }
     />

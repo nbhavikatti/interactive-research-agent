@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       paperId: id,
       title: parsed.title,
       pageCount: parsed.pages.length,
+      pdfBlobUrl,
     });
   } catch {
     return NextResponse.json(

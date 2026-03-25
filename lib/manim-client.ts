@@ -3,8 +3,9 @@
  * Sends generated Manim code to the render server and returns the video as a Buffer.
  */
 
-const RENDER_SERVER_URL =
-  process.env.MANIM_RENDER_URL || "http://localhost:8000";
+function getRenderServerUrl(): string {
+  return process.env.MANIM_RENDER_URL || "http://localhost:8000";
+}
 const RENDER_TIMEOUT_MS = 90_000; // 90s — rendering can be slow
 
 interface RenderOptions {
@@ -33,7 +34,7 @@ export async function renderManimVideo(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), RENDER_TIMEOUT_MS);
 
-    const response = await fetch(`${RENDER_SERVER_URL}/render`, {
+    const response = await fetch(`${getRenderServerUrl()}/render`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, scene_name: sceneName, quality }),
@@ -61,22 +62,5 @@ export async function renderManimVideo(
       success: false,
       error: err instanceof Error ? err.message : "Unknown render error",
     };
-  }
-}
-
-/**
- * Check if the render server is reachable.
- */
-export async function isRenderServerAvailable(): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3_000);
-    const response = await fetch(`${RENDER_SERVER_URL}/health`, {
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response.ok;
-  } catch {
-    return false;
   }
 }
