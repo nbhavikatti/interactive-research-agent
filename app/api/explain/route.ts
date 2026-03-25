@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { streamExplanation, generateCompletion } from "@/lib/llm-client";
+import { renderManimVideo, isRenderServerAvailable } from "@/lib/manim-client";
 import { paperStore } from "@/lib/paper-store";
 import {
   buildExplainPrompt,
@@ -50,14 +51,33 @@ export async function POST(req: NextRequest) {
     };
 
     // Step 1: Classify the visualization route
-    const classification = await classifyWithTimeout(promptInput);
+    // Also check if the render server is available (in parallel)
+    const [classification, renderAvailable] = await Promise.all([
+      classifyWithTimeout(promptInput),
+      isRenderServerAvailable(),
+    ]);
+
+    // If manim was chosen but render server is down, fall back to static
+    const effectiveRoute =
+      classification.route === "manim_animation" && !renderAvailable
+        ? "static_diagram"
+        : classification.route;
+
+    const effectiveClassification: ClassifierResult = {
+      route: effectiveRoute,
+      reason:
+        effectiveRoute !== classification.route
+          ? "Animation render server unavailable; falling back to static diagram"
+          : classification.reason,
+    };
+
     console.log(
-      `[viz-router] route=${classification.route} reason="${classification.reason}"`,
+      `[viz-router] route=${effectiveClassification.route} reason="${effectiveClassification.reason}" render_server=${renderAvailable}`,
     );
 
     // Step 2: Build the appropriate prompt based on route
     const prompt =
-      classification.route === "manim_animation"
+      effectiveClassification.route === "manim_animation"
         ? buildExplainWithManimPrompt(promptInput)
         : buildExplainPrompt(promptInput);
 
@@ -67,7 +87,7 @@ export async function POST(req: NextRequest) {
         // Send classification info to client immediately
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ classification })}\n\n`,
+            `data: ${JSON.stringify({ classification: effectiveClassification })}\n\n`,
           ),
         );
 
@@ -82,9 +102,9 @@ export async function POST(req: NextRequest) {
 
           const parsed = serverParseResult(accumulated);
 
-          // Step 3: If manim route, generate actual Manim code from the spec
+          // Step 3: If manim route, generate Manim code then render to video
           if (
-            classification.route === "manim_animation" &&
+            effectiveClassification.route === "manim_animation" &&
             parsed?.diagram &&
             (parsed.diagram as Record<string, unknown>).type === "manim"
           ) {
@@ -92,19 +112,43 @@ export async function POST(req: NextRequest) {
             const spec = diagram.animation_spec as AnimationSpec | undefined;
 
             if (spec) {
+              // 3a: Generate Manim code
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({ status: "generating_manim_code" })}\n\n`,
                 ),
               );
 
+              let manimCode = "";
               try {
-                const manimCode = await generateManimCode(spec);
+                manimCode = await generateManimCode(spec);
                 diagram.code = manimCode;
               } catch (codeGenError) {
                 console.error("[viz-router] Manim code generation failed:", codeGenError);
-                // Fallback: keep the placeholder code, frontend will handle gracefully
                 diagram.code = "";
+              }
+
+              // 3b: Render the video
+              if (manimCode) {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ status: "rendering_video" })}\n\n`,
+                  ),
+                );
+
+                const renderResult = await renderManimVideo({ code: manimCode });
+
+                if (renderResult.success) {
+                  // Store video as base64 data URL (for v1; switch to Blob storage for production)
+                  const base64 = renderResult.videoBuffer.toString("base64");
+                  diagram.video_data_url = `data:video/mp4;base64,${base64}`;
+                  console.log(
+                    `[viz-router] Video rendered successfully (${(renderResult.videoBuffer.length / 1024).toFixed(0)}KB)`,
+                  );
+                } else {
+                  console.error("[viz-router] Video render failed:", renderResult.error);
+                  diagram.render_error = renderResult.error;
+                }
               }
             }
           }
@@ -168,7 +212,6 @@ async function classifyWithTimeout(
       return parsed as unknown as ClassifierResult;
     }
 
-    // Debug: surface the actual response in the UI so we can see what went wrong
     const preview = result.slice(0, 300).replace(/\n/g, " ");
     return {
       route: "static_diagram" as const,
@@ -176,8 +219,7 @@ async function classifyWithTimeout(
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : "";
-    console.error("[viz-router] Classification failed:", msg, stack);
+    console.error("[viz-router] Classification failed:", msg);
     return {
       route: "static_diagram" as const,
       reason: `Classification error: ${msg}`,

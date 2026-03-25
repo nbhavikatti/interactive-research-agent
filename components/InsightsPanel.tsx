@@ -143,6 +143,16 @@ export function InsightsPanel({
             (insight.diagram as { animation_spec: AnimationSpec }).animation_spec
           }
           manimCode={insight.diagram.code}
+          videoDataUrl={
+            "video_data_url" in insight.diagram
+              ? (insight.diagram as { video_data_url?: string }).video_data_url
+              : undefined
+          }
+          renderError={
+            "render_error" in insight.diagram
+              ? (insight.diagram as { render_error?: string }).render_error
+              : undefined
+          }
         />
       ) : (
         <DiagramRenderer mermaidCode={insight.diagram.code} />

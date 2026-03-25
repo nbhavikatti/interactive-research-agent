@@ -19,6 +19,8 @@ export interface ExplanationResult {
         type: "manim";
         animation_spec: AnimationSpec;
         code: string;
+        video_data_url?: string;
+        render_error?: string;
       };
 }
 
@@ -100,8 +102,8 @@ export function useStreamingExplain() {
               setClassification(parsed.classification as ClassificationInfo);
             }
 
-            // Status updates (e.g., "generating_manim_code")
-            if (parsed.status === "generating_manim_code") {
+            // Status updates
+            if (parsed.status === "generating_manim_code" || parsed.status === "rendering_video") {
               setIsManimGenerating(true);
             }
 
