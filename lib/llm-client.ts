@@ -41,19 +41,24 @@ export async function generateCompletion(
   });
 
   let result = "";
-  const eventTypes: string[] = [];
   for await (const event of stream) {
-    eventTypes.push(event.type);
     if (event.type === "response.output_text.delta") {
       result += event.delta;
     }
-  }
-
-  if (!result) {
-    console.error(
-      "[generateCompletion] Empty result. Event types seen:",
-      eventTypes.join(", "),
-    );
+    // Log terminal events to debug empty responses
+    if (event.type === "response.completed") {
+      const resp = (event as unknown as Record<string, unknown>).response as Record<string, unknown> | undefined;
+      if (!result && resp) {
+        console.error(
+          "[generateCompletion] No text deltas. Status:",
+          resp.status,
+          "Error:",
+          JSON.stringify(resp.error ?? null),
+          "Output:",
+          JSON.stringify(resp.output)?.slice(0, 500),
+        );
+      }
+    }
   }
 
   return result;
