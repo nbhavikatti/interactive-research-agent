@@ -46,18 +46,19 @@ export async function generateCompletion(
       result += event.delta;
     }
     // Log terminal events to debug empty responses
-    if (event.type === "response.completed") {
+    if (
+      event.type === "response.completed" ||
+      event.type === "response.incomplete" ||
+      event.type === "response.failed"
+    ) {
       const resp = (event as unknown as Record<string, unknown>).response as Record<string, unknown> | undefined;
-      if (!result && resp) {
-        console.error(
-          "[generateCompletion] No text deltas. Status:",
-          resp.status,
-          "Error:",
-          JSON.stringify(resp.error ?? null),
-          "Output:",
-          JSON.stringify(resp.output)?.slice(0, 500),
-        );
-      }
+      console.error(
+        `[generateCompletion] Stream ended: ${event.type}`,
+        "status:", resp?.status,
+        "incomplete_details:", JSON.stringify((resp as Record<string,unknown>)?.incomplete_details ?? null),
+        "error:", JSON.stringify(resp?.error ?? null),
+        "output:", JSON.stringify(resp?.output)?.slice(0, 500),
+      );
     }
   }
 

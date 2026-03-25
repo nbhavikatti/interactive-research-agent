@@ -152,7 +152,7 @@ async function classifyWithTimeout(
     const classifierPrompt = buildClassifierPrompt(promptInput);
 
     const result = await Promise.race([
-      generateCompletion(classifierPrompt, 200),
+      generateCompletion(classifierPrompt, 1000),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("timeout")), CLASSIFIER_TIMEOUT_MS),
       ),
