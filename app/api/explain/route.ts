@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
             buildMermaidDiagramPrompt(promptInput),
             mermaidDiagramSchema,
             "mermaid_diagram",
-            900,
+            1200,
           ).catch((err) => {
             logStage(requestId, `diagram_failed message="${err instanceof Error ? err.message : "unknown"}"`);
             return null;
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
 
           logStage(
             requestId,
-            `explanation_ready ms=${Date.now() - startedAt}`,
+            `explanation_ready diagram=${diagramResult ? "yes" : "no"} ms=${Date.now() - startedAt}`,
           );
 
           if (explanationResult) {
