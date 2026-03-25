@@ -34,7 +34,7 @@ export async function generateStructuredObject<T>(
   const client = getClient();
 
   const response = await client.responses.create({
-    model: "gpt-5",
+    model: "gpt-4o",
     input: prompt,
     max_output_tokens: maxTokens,
     text: {
@@ -178,7 +178,7 @@ export async function generateCompletion(
 ): Promise<string> {
   const client = getClient();
   const response = await client.responses.create({
-    model: "gpt-5",
+    model: "gpt-4o",
     input: prompt,
     max_output_tokens: maxTokens,
   });
