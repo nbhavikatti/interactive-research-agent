@@ -35,10 +35,14 @@ export const paperStore = {
 
   async set(id: string, paper: StoredPaper): Promise<void> {
     metadataCache.set(id, paper);
-    await put(metadataPath(id), JSON.stringify(paper), {
+    // Fire-and-forget: persist to blob storage in the background.
+    // The in-memory cache serves reads immediately.
+    put(metadataPath(id), JSON.stringify(paper), {
       access: "public",
       contentType: "application/json",
       addRandomSuffix: false,
+    }).catch((err) => {
+      console.error(`[paper-store] Failed to persist metadata for ${id}:`, err);
     });
   },
 
