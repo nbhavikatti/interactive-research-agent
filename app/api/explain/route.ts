@@ -179,8 +179,13 @@ async function classifyWithTimeout(
     console.warn("[viz-router] Classifier response did not match expected shape");
     return defaultResult;
   } catch (err) {
-    console.error("[viz-router] Classification failed:", err);
-    return defaultResult;
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : "";
+    console.error("[viz-router] Classification failed:", msg, stack);
+    return {
+      route: "static_diagram" as const,
+      reason: `Classification error: ${msg}`,
+    };
   }
 }
 
