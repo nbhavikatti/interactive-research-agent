@@ -39,21 +39,26 @@ export async function generateCompletion(
     max_output_tokens: maxTokens,
   });
 
-  // Extract text from the response
-  const textOutput = response.output.find(
-    (item: { type: string }) => item.type === "message",
-  );
-  if (textOutput && "content" in textOutput) {
-    const content = (
-      textOutput as { content: { type: string; text?: string }[] }
-    ).content;
-    const textBlock = content.find(
-      (block: { type: string }) => block.type === "output_text",
-    );
-    if (textBlock && "text" in textBlock) {
-      return textBlock.text as string;
+  // The Responses API puts the text in output_text at the top level
+  if (response.output_text) {
+    return response.output_text;
+  }
+
+  // Fallback: walk the output array manually
+  for (const item of response.output) {
+    if (item.type === "message" && "content" in item) {
+      const content = item.content as { type: string; text?: string }[];
+      for (const block of content) {
+        if (block.type === "output_text" && block.text) {
+          return block.text;
+        }
+      }
     }
   }
 
-  return response.output_text ?? "";
+  console.error(
+    "[generateCompletion] Could not extract text. Response output:",
+    JSON.stringify(response.output, null, 2),
+  );
+  return "";
 }

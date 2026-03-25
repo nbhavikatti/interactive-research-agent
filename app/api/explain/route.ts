@@ -163,7 +163,11 @@ async function classifyWithTimeout(
       ),
     ]);
 
+    console.log("[viz-router] Raw classifier response:", result);
+
     const parsed = serverParseResult(result);
+    console.log("[viz-router] Parsed classifier result:", parsed);
+
     if (
       parsed &&
       (parsed.route === "static_diagram" || parsed.route === "manim_animation") &&
@@ -172,6 +176,7 @@ async function classifyWithTimeout(
       return parsed as unknown as ClassifierResult;
     }
 
+    console.warn("[viz-router] Classifier response did not match expected shape");
     return defaultResult;
   } catch (err) {
     console.error("[viz-router] Classification failed:", err);
