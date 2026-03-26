@@ -4,6 +4,7 @@ import {
   explanationContentSchema,
   generateCompletion,
   generateStructuredObject,
+  generateStructuredObjectFast,
   mermaidDiagramSchema,
   parseStructuredText,
 } from "@/lib/llm-client";
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
             promptInput,
             requestId,
           );
-          const diagramPromise = generateStructuredObject(
+          const diagramPromise = generateStructuredObjectFast(
             buildMermaidDiagramPrompt(promptInput),
             mermaidDiagramSchema,
             "mermaid_diagram",

@@ -25,7 +25,44 @@ export class StructuredGenerationError extends Error {
   }
 }
 
+/**
+ * Generate a structured object using gpt-5 with low reasoning effort.
+ * Used for explanation content where quality matters.
+ */
 export async function generateStructuredObject<T>(
+  prompt: string,
+  schema: z.ZodType<T>,
+  schemaName: string,
+  maxTokens: number,
+): Promise<T> {
+  const client = getClient();
+
+  const response = await client.responses.create({
+    model: "gpt-5",
+    input: prompt,
+    max_output_tokens: maxTokens,
+    reasoning: { effort: "low" },
+    text: {
+      format: zodTextFormat(schema, schemaName),
+    },
+  });
+
+  const rawText = extractResponseText(response);
+  const fallbackParsed = parseStructuredText(rawText, schema);
+  if (fallbackParsed) {
+    return fallbackParsed;
+  }
+
+  throw new StructuredGenerationError(
+    `Model did not return a valid ${schemaName} payload.`,
+  );
+}
+
+/**
+ * Generate a structured object using gpt-4o (fast, no reasoning overhead).
+ * Used for diagram generation where speed matters more than depth.
+ */
+export async function generateStructuredObjectFast<T>(
   prompt: string,
   schema: z.ZodType<T>,
   schemaName: string,
@@ -168,9 +205,8 @@ function escapeControlCharsInStrings(text: string): string {
 }
 
 /**
- * Non-streaming completion for classification and code generation steps.
- * Collects streaming deltas, with a fallback to extract text from the
- * completed response event if no deltas were received.
+ * Non-streaming completion using gpt-5 with low reasoning effort.
+ * Used as a fallback for explanation retry.
  */
 export async function generateCompletion(
   prompt: string,
@@ -178,9 +214,10 @@ export async function generateCompletion(
 ): Promise<string> {
   const client = getClient();
   const response = await client.responses.create({
-    model: "gpt-4o",
+    model: "gpt-5",
     input: prompt,
     max_output_tokens: maxTokens,
+    reasoning: { effort: "low" },
   });
 
   return response.output_text ?? "";
