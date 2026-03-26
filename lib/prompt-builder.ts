@@ -76,7 +76,7 @@ Rules:
 }
 
 export function buildMermaidDiagramPrompt(input: PromptInput): string {
-  return `You are generating a Mermaid diagram for a research paper explanation tool.
+  return `You are generating a Mermaid flowchart for a research paper explanation tool.
 
 ${buildContextText(input)}
 
@@ -84,7 +84,20 @@ Return a JSON object with exactly these keys:
 - "type": must be "mermaid"
 - "code": the Mermaid diagram source
 
-Produce one Mermaid diagram that helps explain the highlighted passage.
+Diagram philosophy — what makes a GOOD diagram:
+- Focus on the conceptual data flow or decision process described in the passage
+- Show how inputs transform into outputs through clear steps
+- Show what connects to what and why — relationships, dependencies, data flow
+- Do NOT try to reproduce full system architectures, layer stacks, or block diagrams from the paper
+- Do NOT try to show internal sub-components of a repeated block — instead show the flow THROUGH the block
+- Think: "If I had to explain this passage on a whiteboard with boxes and arrows, what would I draw?"
+- A simple, accurate diagram is far better than a complex, wrong one
+- Prefer showing 4-6 nodes with meaningful labeled arrows over 8+ nodes with unlabeled connections
+
+Example good diagram topics:
+- "How does data flow from input to output?" (not "what are all the internal layers?")
+- "What are the key steps in this computation?" (not "reproduce Figure 1")
+- "How do these two approaches compare?" (not "show every component of both")
 
 Critical syntax rules — violating any of these will cause a render error:
 - Start with "flowchart TD" or "flowchart LR" (no other diagram types)
