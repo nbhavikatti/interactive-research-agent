@@ -8,11 +8,20 @@ interface MathFormattedTextProps {
 }
 
 function fixLatexEscapes(expr: string): string {
-  // JSON.parse turns \text into <tab>ext, \theta into <tab>heta, \tau into <tab>au, etc.
-  // Restore tab + known suffix back to the proper backslash-command.
+  // JSON.parse can corrupt LaTeX backslash-commands when the model doesn't
+  // double-escape in JSON. For example \text becomes <tab>ext because JSON
+  // interprets \t as a tab, \n as a newline, \r as a carriage return, etc.
+  // Fix: replace any control character followed by letters back to backslash + letter + rest.
   return expr.replace(
-    /\t(ext|extbf|extit|extrm|exttt|heta|au|imes)\b/g,
-    (_match, suffix: string) => "\\" + "t" + suffix,
+    /[\t\n\r]([a-zA-Z])/g,
+    (_match, letter: string) => {
+      const controlChar = _match[0];
+      const prefix =
+        controlChar === "\t" ? "t" :
+        controlChar === "\n" ? "n" :
+        "r";
+      return "\\" + prefix + letter;
+    },
   );
 }
 
