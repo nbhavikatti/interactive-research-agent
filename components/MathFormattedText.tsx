@@ -35,16 +35,73 @@ function renderMath(expression: string, displayMode: boolean, key: string) {
   return <span dangerouslySetInnerHTML={{ __html: html }} key={key} />;
 }
 
+/**
+ * Fixes inline math blocks that accidentally contain natural-language prose.
+ * e.g. "$z = f(x) and the output is y$" → "$z = f(x)$ and the output is $y$"
+ *
+ * Heuristic: if an inline $...$ block contains common English words that aren't
+ * part of LaTeX commands (\text{...}, \mathrm{...}, etc.), split them out.
+ */
+function fixMixedMathProse(text: string): string {
+  // Match inline math (not display math $$...$$)
+  return text.replace(/\$([^$\n]+?)\$/g, (_match, inner: string) => {
+    // Don't touch expressions that are purely math (no spaces or very short)
+    if (inner.length < 10) return _match;
+
+    // Strip out LaTeX command arguments like \text{...}, \mathrm{...}, etc.
+    // so we don't flag English words inside those commands
+    const withoutTextCommands = inner.replace(
+      /\\(?:text|mathrm|mathit|mathbf|operatorname|mbox)\{[^}]*\}/g,
+      "",
+    );
+
+    // Common English words that should not appear bare inside math mode
+    const proseWords =
+      /\b(?:the|and|or|is|are|was|were|in|on|at|to|for|of|by|from|with|that|this|each|where|which|when|then|into|also|not|its|all|any|has|have|can|will|does|over|such)\b/i;
+
+    if (!proseWords.test(withoutTextCommands)) return _match;
+
+    // The expression mixes math and prose. Split on prose word boundaries:
+    // Find segments that are math vs prose and re-wrap only the math parts.
+    const segments = inner.split(
+      /(\b(?:the|and|or|is|are|was|were|in|on|at|to|for|of|by|from|with|that|this|each|where|which|when|then|into|also|not|its|all|any|has|have|can|will|does|over|such)\b[\s,;:.]*)/i,
+    );
+
+    let result = "";
+    let mathBuffer = "";
+
+    for (const seg of segments) {
+      const isProse = proseWords.test(seg);
+      if (!isProse && seg.trim()) {
+        mathBuffer += seg;
+      } else {
+        if (mathBuffer.trim()) {
+          result += `$${mathBuffer.trim()}$`;
+          mathBuffer = "";
+        }
+        result += seg;
+      }
+    }
+
+    if (mathBuffer.trim()) {
+      result += `$${mathBuffer.trim()}$`;
+    }
+
+    return result;
+  });
+}
+
 function renderInlineContent(text: string) {
   const parts: React.ReactNode[] = [];
+  const sanitized = fixMixedMathProse(text);
   const pattern = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  match = pattern.exec(text);
+  match = pattern.exec(sanitized);
   while (match) {
     if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
+      parts.push(sanitized.slice(lastIndex, match.index));
     }
 
     const token = match[0];
@@ -56,11 +113,11 @@ function renderInlineContent(text: string) {
     );
 
     lastIndex = match.index + token.length;
-    match = pattern.exec(text);
+    match = pattern.exec(sanitized);
   }
 
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
+  if (lastIndex < sanitized.length) {
+    parts.push(sanitized.slice(lastIndex));
   }
 
   return parts;

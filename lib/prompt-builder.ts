@@ -34,6 +34,11 @@ Formatting rules for the explanation text:
 - Use inline math for short expressions, like $q$, $k_i$, $v_i$, $s_i = q \\cdot k_i$, and $o = \\sum_i a_i v_i$.
 - Use display math for standalone equations with $$...$$.
 - Do not write raw plaintext math like "k_i", "sum_i", or "x^2" outside LaTeX delimiters.
+- CRITICAL: Never put natural-language words inside $...$ delimiters. Each $...$ block must contain ONLY math symbols and LaTeX commands. Close the math delimiter before any English word and re-open it after.
+  - WRONG: "$z = f(x) and the decoder uses y$"
+  - RIGHT: "$z = f(x)$ and the decoder uses $y$"
+  - WRONG: "$z = \\text{Encoder}(x) and the output$"
+  - RIGHT: "$z = \\text{Encoder}(x)$ and the output
 - Keep the prose natural, but every mathematical symbol or formula must be valid renderable LaTeX.
 
 Return a JSON object with exactly these keys:
