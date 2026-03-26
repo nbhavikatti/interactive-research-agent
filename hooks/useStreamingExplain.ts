@@ -12,6 +12,7 @@ type ExplainStreamEvent =
       explanation: ExplanationContent;
       diagram?: { type: "mermaid"; code: string };
     }
+  | { type: "diagram_ready"; diagram: { type: "mermaid"; code: string } }
   | {
       type: "error";
       stage: "generation" | "request";
@@ -87,6 +88,15 @@ export function useStreamingExplain() {
                 ...(prev ?? createEmptyResult()),
                 explanation: parsed.explanation,
                 diagram: parsed.diagram ?? prev?.diagram ?? null,
+              }));
+              setStatusMessage("Generating diagram...");
+              continue;
+            }
+
+            if (parsed.type === "diagram_ready") {
+              setResult((prev) => ({
+                ...(prev ?? createEmptyResult()),
+                diagram: parsed.diagram,
               }));
               continue;
             }

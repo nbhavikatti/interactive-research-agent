@@ -27,6 +27,7 @@ type ExplainStreamEvent =
       explanation: ExplanationContent;
       diagram?: { type: "mermaid"; code: string };
     }
+  | { type: "diagram_ready"; diagram: { type: "mermaid"; code: string } }
   | { type: "error"; stage: ExplainErrorStage; message: string }
   | { type: "done" };
 
@@ -85,36 +86,22 @@ export async function POST(req: NextRequest) {
         };
 
         try {
-          // Run explanation and diagram generation in parallel
-          const explanationPromise = generateExplanationContent(
+          // Step 1: Generate explanation (gpt-5 with low reasoning)
+          const explanationResult = await generateExplanationContent(
             promptInput,
             requestId,
           );
-          const diagramPromise = generateStructuredObjectFast(
-            buildMermaidDiagramPrompt(promptInput),
-            mermaidDiagramSchema,
-            "mermaid_diagram",
-            1200,
-          ).catch((err) => {
-            logStage(requestId, `diagram_failed message="${err instanceof Error ? err.message : "unknown"}"`);
-            return null;
-          });
-
-          const [explanationResult, diagramResult] = await Promise.all([
-            explanationPromise,
-            diagramPromise,
-          ]);
 
           logStage(
             requestId,
-            `explanation_ready diagram=${diagramResult ? "yes" : "no"} ms=${Date.now() - startedAt}`,
+            `explanation_ready ms=${Date.now() - startedAt}`,
           );
 
           if (explanationResult) {
+            // Send explanation immediately so the user sees it right away
             send({
               type: "explanation_ready",
               explanation: explanationResult,
-              diagram: diagramResult ?? undefined,
             });
           } else {
             send({
@@ -122,6 +109,26 @@ export async function POST(req: NextRequest) {
               stage: "generation",
               message: "Could not generate the explanation.",
             });
+            send({ type: "done" });
+            controller.close();
+            return;
+          }
+
+          // Step 2: Generate diagram using the explanation as context (gpt-4o, fast)
+          try {
+            const diagramResult = await generateStructuredObjectFast(
+              buildMermaidDiagramPrompt(promptInput, explanationResult),
+              mermaidDiagramSchema,
+              "mermaid_diagram",
+              1200,
+            );
+            logStage(
+              requestId,
+              `diagram_ready ms=${Date.now() - startedAt}`,
+            );
+            send({ type: "diagram_ready", diagram: diagramResult });
+          } catch (err) {
+            logStage(requestId, `diagram_failed message="${err instanceof Error ? err.message : "unknown"}"`);
           }
 
           send({ type: "done" });

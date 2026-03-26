@@ -7,8 +7,17 @@ interface MathFormattedTextProps {
   className?: string;
 }
 
+function fixLatexEscapes(expr: string): string {
+  // JSON.parse turns \text into <tab>ext, \theta into <tab>heta, \tau into <tab>au, etc.
+  // Restore tab + known suffix back to the proper backslash-command.
+  return expr.replace(
+    /\t(ext|extbf|extit|extrm|exttt|heta|au|imes)\b/g,
+    (_match, suffix: string) => "\\" + "t" + suffix,
+  );
+}
+
 function renderMath(expression: string, displayMode: boolean, key: string) {
-  const html = katex.renderToString(expression.trim(), {
+  const html = katex.renderToString(fixLatexEscapes(expression.trim()), {
     displayMode,
     strict: "ignore",
     throwOnError: false,

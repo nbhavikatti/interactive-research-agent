@@ -75,10 +75,21 @@ Rules:
 - When writing math, use LaTeX delimiters like $q$, $k_i$, and $\\sum_i a_i v_i$`;
 }
 
-export function buildMermaidDiagramPrompt(input: PromptInput): string {
+export function buildMermaidDiagramPrompt(input: PromptInput, explanation?: { summary: string; coreIdea: string; intuition: string; breakdown: string }): string {
+  const explanationContext = explanation
+    ? `
+
+Here is an expert explanation of the passage that has already been generated. Your diagram MUST accurately reflect this explanation — diagram what it describes, not your own interpretation:
+
+Summary: ${explanation.summary}
+Core Idea: ${explanation.coreIdea}
+Intuition: ${explanation.intuition}
+Step-by-step Breakdown: ${explanation.breakdown}`
+    : "";
+
   return `You are generating a Mermaid flowchart for a research paper explanation tool.
 
-${buildContextText(input)}
+${buildContextText(input)}${explanationContext}
 
 Return a JSON object with exactly these keys:
 - "type": must be "mermaid"
