@@ -86,11 +86,18 @@ Return a JSON object with exactly these keys:
 
 Produce one Mermaid diagram that helps explain the highlighted passage.
 
-Important rules for the Mermaid diagram:
-- Use simple alphanumeric node IDs (A, B, C or node1, node2)
-- Keep node labels short (max 6 words per label)
-- Use square brackets for labels: A[Label Here]
-- Do NOT use parentheses, quotes, or special characters in labels
-- Max 10 nodes
-- Must be valid Mermaid syntax`;
+Critical syntax rules — violating any of these will cause a render error:
+- Start with "flowchart TD" or "flowchart LR" (no other diagram types)
+- Use simple alphanumeric node IDs with NO spaces: A, B, C or node1, node2
+- Use square brackets for ALL labels: A[Label Here]
+- Do NOT use parentheses (), curly braces {}, or double brackets [[ ]] for labels
+- Do NOT put quotes inside labels
+- Do NOT use special characters in labels: no &, <, >, ", #, or backticks
+- Use only plain English words and hyphens in labels
+- Keep labels short (max 5 words)
+- Use only these arrow types: -->, --->, -->|label|
+- Arrow labels must also be plain text with no special characters
+- Max 8 nodes
+- Each node definition and each connection must be on its own line
+- Do NOT use subgraph`;
 }

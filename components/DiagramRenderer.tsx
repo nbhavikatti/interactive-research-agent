@@ -9,6 +9,17 @@ interface DiagramRendererProps {
 
 let mermaidInitialized = false;
 
+function sanitizeMermaidCode(code: string): string {
+  return code
+    .split("\n")
+    .map((line) => {
+      // Strip quotes inside square bracket labels: A["Label"] → A[Label]
+      return line.replace(/\[\"([^"]*)\"\]/g, "[$1]")
+                 .replace(/\[\'([^']*)\'\]/g, "[$1]");
+    })
+    .join("\n");
+}
+
 export function DiagramRenderer({ mermaidCode }: DiagramRendererProps) {
   const [svg, setSvg] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +37,7 @@ export function DiagramRenderer({ mermaidCode }: DiagramRendererProps) {
 
         const { svg: renderedSvg } = await mermaid.render(
           `diagram-${id}`,
-          mermaidCode,
+          sanitizeMermaidCode(mermaidCode),
         );
 
         if (!cancelled) {
