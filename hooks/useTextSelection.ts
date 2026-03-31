@@ -1,6 +1,6 @@
 "use client";
 
-import { RefObject, useEffect, useState } from "react";
+import { RefObject, useCallback, useEffect, useState } from "react";
 
 export interface TextSelectionState {
   text: string;
@@ -78,10 +78,10 @@ export function useTextSelection(containerRef: RefObject<HTMLDivElement>) {
     };
   }, [containerRef]);
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
     setSelection(EMPTY_SELECTION);
-  };
+  }, []);
 
   return { selection, clearSelection };
 }

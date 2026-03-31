@@ -1,8 +1,6 @@
 import OpenAI from "openai";
 
-export async function* streamExplanation(
-  prompt: string,
-): AsyncGenerator<string> {
+export async function* streamResponseText(prompt: string): AsyncGenerator<string> {
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
@@ -19,4 +17,10 @@ export async function* streamExplanation(
       yield event.delta;
     }
   }
+}
+
+export async function* streamExplanation(
+  prompt: string,
+): AsyncGenerator<string> {
+  yield* streamResponseText(prompt);
 }

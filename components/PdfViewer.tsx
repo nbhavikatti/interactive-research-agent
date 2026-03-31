@@ -15,9 +15,15 @@ interface PdfViewerProps {
   pdfUrl: string;
   onExplain?: (selection: ExplainSelection) => void;
   onLoadError?: (error: Error) => void;
+  documentLabel?: string;
 }
 
-export function PdfViewer({ pdfUrl, onExplain, onLoadError }: PdfViewerProps) {
+export function PdfViewer({
+  pdfUrl,
+  onExplain,
+  onLoadError,
+  documentLabel,
+}: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pageSurfaceRef = useRef<HTMLDivElement>(null);
   const [numPages, setNumPages] = useState(0);
@@ -42,6 +48,12 @@ export function PdfViewer({ pdfUrl, onExplain, onLoadError }: PdfViewerProps) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    setNumPages(0);
+    setCurrentPage(1);
+    clearSelection();
+  }, [clearSelection, pdfUrl]);
+
   const pageWidth = Math.max(Math.min(surfaceWidth - 48, 900), 320);
 
   return (
@@ -52,6 +64,11 @@ export function PdfViewer({ pdfUrl, onExplain, onLoadError }: PdfViewerProps) {
             Page {currentPage}
             {numPages > 0 ? ` of ${numPages}` : ""}
           </p>
+          {documentLabel ? (
+            <p className="max-w-xs truncate text-sm text-gray-500">
+              {documentLabel}
+            </p>
+          ) : null}
           <div className="flex items-center gap-2">
             <button
               className="rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"

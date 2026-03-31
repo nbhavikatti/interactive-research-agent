@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { streamExplanation } from "@/lib/llm-client";
+import { parseJsonResponse } from "@/lib/json-response-parser";
 import { paperStore } from "@/lib/paper-store";
 import { buildExplainPrompt } from "@/lib/prompt-builder";
 import { rateLimit } from "@/lib/rate-limit";
@@ -52,9 +53,7 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // Parse on the server so the client never has to deal with
-          // control-character escaping issues from the SSE round-trip.
-          const parsed = serverParseResult(accumulated);
+          const parsed = parseJsonResponse(accumulated);
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({ result: parsed })}\n\n`,
@@ -85,64 +84,4 @@ export async function POST(req: NextRequest) {
       status: 400,
     });
   }
-}
-
-/**
- * Parse the LLM's JSON response on the server. The raw text from the LLM
- * may contain actual control characters (newlines, tabs) inside JSON string
- * values. We fix those before parsing.
- */
-function serverParseResult(raw: string): Record<string, unknown> | null {
-  // Try direct parse first
-  try {
-    return JSON.parse(raw);
-  } catch {
-    // noop
-  }
-
-  // Strip markdown fences
-  const stripped = raw
-    .replace(/^```(?:json)?\s*\n?/m, "")
-    .replace(/\n?```\s*$/m, "");
-  try {
-    return JSON.parse(stripped);
-  } catch {
-    // noop
-  }
-
-  // Extract { ... } and fix control chars inside string values
-  const match = stripped.match(/\{[\s\S]*\}/);
-  if (match) {
-    try {
-      return JSON.parse(escapeControlCharsInStrings(match[0]));
-    } catch {
-      // noop
-    }
-  }
-
-  return null;
-}
-
-function escapeControlCharsInStrings(text: string): string {
-  let result = "";
-  let inString = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === '"') {
-      let backslashes = 0;
-      for (let j = i - 1; j >= 0 && text[j] === "\\"; j--) backslashes++;
-      if (backslashes % 2 === 0) inString = !inString;
-      result += ch;
-      continue;
-    }
-    if (inString && ch.charCodeAt(0) < 0x20) {
-      if (ch === "\n") result += "\\n";
-      else if (ch === "\r") result += "\\r";
-      else if (ch === "\t") result += "\\t";
-      else result += "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0");
-    } else {
-      result += ch;
-    }
-  }
-  return result;
 }

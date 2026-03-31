@@ -1,17 +1,48 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { CrossPaperInsightsPanel } from "@/components/CrossPaperInsightsPanel";
+import { PdfViewer } from "@/components/PdfViewer";
 import { UploadZone } from "@/components/UploadZone";
+import { UploadedPapersPanel } from "@/components/UploadedPapersPanel";
+import { WorkspaceLayout } from "@/components/WorkspaceLayout";
+import { useSessionAnalysis } from "@/hooks/useSessionAnalysis";
+import {
+  MAX_SESSION_PAPERS,
+  MIN_ANALYSIS_PAPERS,
+  SessionPaper,
+} from "@/lib/session-types";
+
+type SessionMode = "upload" | "analysis";
+
+interface UploadResponse {
+  paperId: string;
+  title: string;
+  pageCount: number;
+}
 
 export default function Home() {
-  const router = useRouter();
+  const [mode, setMode] = useState<SessionMode>("upload");
+  const [papers, setPapers] = useState<SessionPaper[]>([]);
+  const [activePaperId, setActivePaperId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+  const { analyzeSession, error, isLoading, result } = useSessionAnalysis();
+
+  const activePaper =
+    papers.find((paper) => paper.id === activePaperId) ?? papers[0] ?? null;
+
+  const canUploadMore = papers.length < MAX_SESSION_PAPERS;
+  const canAnalyze = papers.length >= MIN_ANALYSIS_PAPERS && !isUploading;
 
   const handleFileSelected = async (file: File) => {
+    if (!canUploadMore) {
+      return;
+    }
+
     setIsUploading(true);
-    setError(null);
+    setUploadError(null);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -21,85 +52,204 @@ export default function Home() {
         method: "POST",
         body: formData,
       });
-      const payload = await response.json();
 
+      const payload = (await response.json()) as UploadResponse & { error?: string };
       if (!response.ok) {
         throw new Error(payload.error ?? "Upload failed");
       }
 
-      router.push(`/paper/${payload.paperId}`);
-    } catch (uploadError) {
-      setError(
-        uploadError instanceof Error
-          ? uploadError.message
+      const nextPaper: SessionPaper = {
+        id: payload.paperId,
+        filename: file.name,
+        title: payload.title,
+        pageCount: payload.pageCount,
+      };
+
+      setPapers((current) => [...current, nextPaper]);
+      setActivePaperId((current) => current ?? nextPaper.id);
+    } catch (errorValue) {
+      setUploadError(
+        errorValue instanceof Error
+          ? errorValue.message
           : "Could not upload your paper.",
       );
+    } finally {
       setIsUploading(false);
     }
   };
 
-  return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
-      {/* Animated gradient background */}
-      <div className="animate-gradient-shift absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50" />
+  const handleRemovePaper = (paperId: string) => {
+    setPapers((current) => {
+      const nextPapers = current.filter((paper) => paper.id !== paperId);
+      if (activePaperId === paperId) {
+        setActivePaperId(nextPapers[0]?.id ?? null);
+      }
+      return nextPapers;
+    });
+    setUploadError(null);
+  };
 
-      {/* Floating decorative blobs */}
-      <div className="animate-float animate-pulse-soft pointer-events-none absolute -top-20 -left-20 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
-      <div className="animate-float-delayed animate-pulse-soft pointer-events-none absolute -right-16 top-1/4 h-60 w-60 rounded-full bg-purple-200/40 blur-3xl" />
-      <div className="animate-float pointer-events-none absolute -bottom-10 left-1/3 h-56 w-56 rounded-full bg-pink-200/30 blur-3xl" />
+  const handleAnalyze = async () => {
+    if (!canAnalyze) {
+      return;
+    }
 
-      <section className="relative z-10 flex w-full max-w-3xl flex-col items-center gap-8 text-center">
-        {/* Header */}
-        <div className="animate-fade-in-up space-y-4">
-          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
-            <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-            </svg>
+    setMode("analysis");
+    setViewerError(null);
+    setActivePaperId((current) => current ?? papers[0]?.id ?? null);
+    await analyzeSession(papers.map((paper) => paper.id));
+  };
+
+  if (mode === "analysis") {
+    return (
+      <WorkspaceLayout
+        headerAction={
+          <button
+            className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+            onClick={() => setMode("upload")}
+            type="button"
+          >
+            Back to uploads
+          </button>
+        }
+        left={
+          <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <div className="border-b border-stone-200 bg-[#f8f4ec] p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+              <UploadedPapersPanel
+                activePaperId={activePaper?.id ?? null}
+                className="h-full"
+                heading="Session papers"
+                papers={papers}
+                onSelectPaper={(paperId) => {
+                  setActivePaperId(paperId);
+                  setViewerError(null);
+                }}
+              />
+            </div>
+            <div className="min-h-0">
+              {activePaper ? (
+                <PdfViewer
+                  documentLabel={activePaper.filename}
+                  onLoadError={(loadError) => {
+                    setViewerError(
+                      `This PDF could not be loaded. ${loadError.message || "Check the server logs for details."}`,
+                    );
+                  }}
+                  pdfUrl={`/api/pdf/${activePaper.id}`}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center p-8 text-sm text-stone-500">
+                  Select a paper to preview it.
+                </div>
+              )}
+            </div>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            Interactive Research{" "}
-            <span className="animate-shimmer bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-              Agent
-            </span>
-          </h1>
-          <p className="animate-fade-in-up-delay-1 mx-auto max-w-lg text-lg text-gray-500">
-            Upload a research paper. Highlight any passage. Get instant
-            explanations and visuals.
-          </p>
-        </div>
-
-        {/* Upload area */}
-        <div className="animate-fade-in-up-delay-2 w-full">
-          {isUploading ? (
-            <div className="mx-auto w-full max-w-xl rounded-2xl border border-white/60 bg-white/70 p-8 shadow-xl shadow-indigo-500/5 backdrop-blur-lg">
-              <div className="mb-4 h-2.5 overflow-hidden rounded-full bg-gray-100">
-                <div className="animate-shimmer h-full w-2/3 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 transition-all duration-500" />
+        }
+        right={
+          viewerError ? (
+            <div className="p-6">
+              <div className="rounded-[28px] border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+                {viewerError}
               </div>
-              <p className="text-sm font-medium text-gray-700">
-                Uploading and parsing your paper...
-              </p>
             </div>
           ) : (
-            <UploadZone onFileSelected={handleFileSelected} />
-          )}
-        </div>
+            <CrossPaperInsightsPanel
+              error={error}
+              onRetry={() => void analyzeSession(papers.map((paper) => paper.id))}
+              papers={papers}
+              result={result}
+              state={isLoading ? "loading" : error ? "error" : result ? "result" : "idle"}
+            />
+          )
+        }
+        subtitle="Multi-paper session workspace"
+        title="Interactive Research Agent"
+      />
+    );
+  }
 
-        {error ? (
-          <div className="w-full max-w-xl rounded-2xl border border-red-200 bg-red-50/80 p-4 text-left text-sm text-red-700 backdrop-blur-sm">
-            <p>{error}</p>
-            <button
-              className="mt-3 inline-flex rounded-full border border-red-300 px-4 py-2 font-medium text-red-700 transition hover:bg-red-100"
-              onClick={() => {
-                setError(null);
-                setIsUploading(false);
-              }}
-              type="button"
-            >
-              Try again
-            </button>
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#f5f0e8] px-6 py-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(217,119,6,0.14),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.14),_transparent_30%),linear-gradient(180deg,_#fbf8f2,_#f4ede2)]" />
+
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="flex min-h-[640px] items-center justify-center">
+          <div className="w-full max-w-3xl rounded-[40px] border border-white/70 bg-white/72 p-8 shadow-[0_30px_120px_rgba(120,53,15,0.12)] backdrop-blur-xl sm:p-12">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                Research sessions
+              </p>
+              <h1 className="mt-4 font-serif text-4xl tracking-tight text-stone-950 sm:text-6xl">
+                Interactive Research Agent
+              </h1>
+              <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-stone-600 sm:text-lg">
+                Upload up to 5 research papers and we will provide cross-paper
+                insights, comparisons, themes, and idea generation across the
+                session.
+              </p>
+            </div>
+
+            <div className="mt-10">
+              {isUploading ? (
+                <div className="mx-auto w-full max-w-xl rounded-[28px] border border-stone-200 bg-stone-50/90 p-8 shadow-sm">
+                  <div className="mb-4 h-2.5 overflow-hidden rounded-full bg-stone-200">
+                    <div className="animate-shimmer h-full w-2/3 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-sky-500" />
+                  </div>
+                  <p className="text-sm font-medium text-stone-700">
+                    Uploading and parsing your paper...
+                  </p>
+                </div>
+              ) : (
+                <UploadZone
+                  disabled={!canUploadMore}
+                  helperText="Upload up to 5 research papers and we will provide cross-paper insights and analysis."
+                  onFileSelected={(file) => void handleFileSelected(file)}
+                  supportingText={`${papers.length} / ${MAX_SESSION_PAPERS} papers uploaded`}
+                />
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-col items-center gap-4 text-center">
+              <p className="text-sm text-stone-500">
+                Upload at least {MIN_ANALYSIS_PAPERS} papers to unlock cross-paper
+                analysis.
+              </p>
+              <button
+                className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                disabled={!canAnalyze}
+                onClick={() => void handleAnalyze()}
+                type="button"
+              >
+                Analyze Papers
+              </button>
+            </div>
+
+            {uploadError ? (
+              <div className="mx-auto mt-6 max-w-xl rounded-[24px] border border-red-200 bg-red-50/90 p-4 text-left text-sm text-red-700">
+                <p>{uploadError}</p>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </section>
+        </section>
+
+        <section className="min-h-[640px] lg:py-10">
+          <UploadedPapersPanel
+            action={
+              <button
+                className="rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                disabled={!canAnalyze}
+                onClick={() => void handleAnalyze()}
+                type="button"
+              >
+                Analyze Papers
+              </button>
+            }
+            className="h-full"
+            papers={papers}
+            onRemovePaper={handleRemovePaper}
+          />
+        </section>
+      </div>
     </main>
   );
 }
