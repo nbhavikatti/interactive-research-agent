@@ -27,8 +27,8 @@ export function UploadedPapersPanel({
       className={`flex h-full flex-col rounded-[28px] border border-slate-200/80 bg-slate-950/70 shadow-[0_20px_60px_rgba(15,23,42,0.28)] backdrop-blur ${className}`}
     >
       <div className="border-b border-slate-800 px-5 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-col items-center justify-center gap-4 text-center">
+          <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
               Session
             </p>
@@ -63,14 +63,14 @@ export function UploadedPapersPanel({
                   >
                     <div className="flex items-start gap-3">
                       <button
-                        className={`min-w-0 flex-1 text-left ${
+                        className={`min-w-0 flex-1 text-center ${
                           isSelectable ? "cursor-pointer" : "cursor-default"
                         }`}
                         disabled={!isSelectable}
                         onClick={() => onSelectPaper?.(paper.id)}
                         type="button"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center gap-2">
                           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-xs font-semibold text-sky-200 ring-1 ring-sky-400/30">
                             {index + 1}
                           </span>

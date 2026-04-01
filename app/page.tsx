@@ -234,16 +234,6 @@ export default function Home() {
 
         <section className="min-h-[640px] lg:py-10">
           <UploadedPapersPanel
-            action={
-              <button
-                className="rounded-full bg-sky-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-                disabled={!canAnalyze}
-                onClick={() => void handleAnalyze()}
-                type="button"
-              >
-                Analyze Papers
-              </button>
-            }
             className="h-full"
             papers={papers}
             onRemovePaper={handleRemovePaper}
