@@ -44,7 +44,7 @@ export async function generateStructuredAnalysis(
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const response = await client.responses.create({
+  const response = await client.responses.parse({
     model: "gpt-5",
     input: prompt,
     max_output_tokens: 2800,
@@ -123,9 +123,12 @@ export async function generateStructuredAnalysis(
   });
 
   const rawText = response.output_text ?? "";
+  const parsed =
+    (response.output_parsed as Record<string, unknown> | null | undefined) ??
+    parseJsonResponse(rawText);
 
   return {
-    parsed: parseJsonResponse(rawText),
+    parsed,
     rawText,
   };
 }
