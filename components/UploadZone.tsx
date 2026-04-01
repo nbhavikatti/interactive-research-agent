@@ -66,12 +66,12 @@ export function UploadZone({
       <button
         className={`group flex min-h-[280px] w-full flex-col items-center justify-center gap-5 rounded-3xl border-2 border-dashed px-10 py-12 text-center backdrop-blur-lg transition-all duration-300 ${
           disabled
-            ? "cursor-not-allowed border-stone-200 bg-stone-100/80 opacity-70 shadow-none"
+            ? "cursor-not-allowed border-slate-800 bg-slate-950/60 opacity-70 shadow-none"
             : ""
         } ${
           isDragging
-            ? "scale-[1.02] border-indigo-400 bg-indigo-50/80 shadow-xl shadow-indigo-500/10"
-            : "border-gray-200/80 bg-white/60 shadow-lg shadow-gray-200/40 hover:border-indigo-300 hover:bg-white/80 hover:shadow-xl hover:shadow-indigo-500/10"
+            ? "scale-[1.02] border-cyan-400/80 bg-slate-900/95 shadow-xl shadow-cyan-500/10"
+            : "border-slate-800/90 bg-slate-950/72 shadow-lg shadow-black/30 hover:border-sky-400/50 hover:bg-slate-950/88 hover:shadow-xl hover:shadow-sky-500/10"
         }`}
         disabled={disabled}
         onClick={() => {
@@ -100,17 +100,17 @@ export function UploadZone({
         onDrop={handleDrop}
         type="button"
       >
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold tracking-[0.15em] text-white shadow-lg shadow-indigo-500/25 transition-transform duration-300 group-hover:scale-110">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-sm font-bold tracking-[0.15em] text-slate-950 shadow-lg shadow-cyan-500/25 transition-transform duration-300 group-hover:scale-110">
           PDF
         </div>
         <div className="space-y-2">
-          <p className="text-lg font-semibold text-gray-800">
+          <p className="text-lg font-semibold text-slate-100">
             Drag and drop a PDF or click to upload
           </p>
-          <p className="mx-auto max-w-md text-sm leading-6 text-gray-500">
+          <p className="mx-auto max-w-md text-sm leading-6 text-slate-400">
             {helperText}
           </p>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-sky-300/80">
             {supportingText}
           </p>
         </div>
@@ -125,7 +125,7 @@ export function UploadZone({
         type="file"
       />
 
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
     </div>
   );
 }
