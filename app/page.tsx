@@ -105,7 +105,7 @@ export default function Home() {
       <WorkspaceLayout
         headerAction={
           <button
-            className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+            className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-900"
             onClick={() => setMode("upload")}
             type="button"
           >
@@ -114,7 +114,7 @@ export default function Home() {
         }
         left={
           <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <div className="border-b border-stone-200 bg-[#f8f4ec] p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+            <div className="border-b border-slate-800 bg-[#081120] p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
               <UploadedPapersPanel
                 activePaperId={activePaper?.id ?? null}
                 className="h-full"
@@ -129,7 +129,7 @@ export default function Home() {
             <div className="min-h-0">
               {activePaper ? (
                 <PdfViewer
-                  documentLabel={activePaper.filename}
+                  documentLabel={activePaper.title || activePaper.filename}
                   onLoadError={(loadError) => {
                     setViewerError(
                       `This PDF could not be loaded. ${loadError.message || "Check the server logs for details."}`,
@@ -138,7 +138,7 @@ export default function Home() {
                   pdfUrl={`/api/pdf/${activePaper.id}`}
                 />
               ) : (
-                <div className="flex h-full items-center justify-center p-8 text-sm text-stone-500">
+                <div className="flex h-full items-center justify-center p-8 text-sm text-slate-400">
                   Select a paper to preview it.
                 </div>
               )}
@@ -148,7 +148,7 @@ export default function Home() {
         right={
           viewerError ? (
             <div className="p-6">
-              <div className="rounded-[28px] border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+              <div className="rounded-[28px] border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
                 {viewerError}
               </div>
             </div>
@@ -169,20 +169,20 @@ export default function Home() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f5f0e8] px-6 py-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(217,119,6,0.14),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.14),_transparent_30%),linear-gradient(180deg,_#fbf8f2,_#f4ede2)]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#050b14] px-6 py-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_26%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.16),_transparent_28%),linear-gradient(180deg,_#08101d,_#050b14)]" />
 
       <div className="relative z-10 mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section className="flex min-h-[640px] items-center justify-center">
-          <div className="w-full max-w-3xl rounded-[40px] border border-white/70 bg-white/72 p-8 shadow-[0_30px_120px_rgba(120,53,15,0.12)] backdrop-blur-xl sm:p-12">
+          <div className="w-full max-w-3xl rounded-[40px] border border-slate-800/90 bg-slate-950/68 p-8 shadow-[0_30px_120px_rgba(2,6,23,0.55)] backdrop-blur-xl sm:p-12">
             <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300/80">
                 Research sessions
               </p>
-              <h1 className="mt-4 font-serif text-4xl tracking-tight text-stone-950 sm:text-6xl">
+              <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-50 sm:text-6xl">
                 Interactive Research Agent
               </h1>
-              <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-stone-600 sm:text-lg">
+              <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
                 Upload up to 5 research papers and we will provide cross-paper
                 insights, comparisons, themes, and idea generation across the
                 session.
@@ -191,11 +191,11 @@ export default function Home() {
 
             <div className="mt-10">
               {isUploading ? (
-                <div className="mx-auto w-full max-w-xl rounded-[28px] border border-stone-200 bg-stone-50/90 p-8 shadow-sm">
-                  <div className="mb-4 h-2.5 overflow-hidden rounded-full bg-stone-200">
-                    <div className="animate-shimmer h-full w-2/3 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-sky-500" />
+                <div className="mx-auto w-full max-w-xl rounded-[28px] border border-slate-800 bg-slate-900/80 p-8 shadow-sm">
+                  <div className="mb-4 h-2.5 overflow-hidden rounded-full bg-slate-800">
+                    <div className="animate-shimmer h-full w-2/3 rounded-full bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-500" />
                   </div>
-                  <p className="text-sm font-medium text-stone-700">
+                  <p className="text-sm font-medium text-slate-200">
                     Uploading and parsing your paper...
                   </p>
                 </div>
@@ -210,12 +210,12 @@ export default function Home() {
             </div>
 
             <div className="mt-6 flex flex-col items-center gap-4 text-center">
-              <p className="text-sm text-stone-500">
+              <p className="text-sm text-slate-400">
                 Upload at least {MIN_ANALYSIS_PAPERS} papers to unlock cross-paper
                 analysis.
               </p>
               <button
-                className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                className="rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                 disabled={!canAnalyze}
                 onClick={() => void handleAnalyze()}
                 type="button"
@@ -225,7 +225,7 @@ export default function Home() {
             </div>
 
             {uploadError ? (
-              <div className="mx-auto mt-6 max-w-xl rounded-[24px] border border-red-200 bg-red-50/90 p-4 text-left text-sm text-red-700">
+              <div className="mx-auto mt-6 max-w-xl rounded-[24px] border border-red-500/30 bg-red-500/10 p-4 text-left text-sm text-red-200">
                 <p>{uploadError}</p>
               </div>
             ) : null}
@@ -236,7 +236,7 @@ export default function Home() {
           <UploadedPapersPanel
             action={
               <button
-                className="rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                className="rounded-full bg-sky-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                 disabled={!canAnalyze}
                 onClick={() => void handleAnalyze()}
                 type="button"
