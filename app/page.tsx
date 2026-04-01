@@ -8,6 +8,7 @@ import { UploadedPapersPanel } from "@/components/UploadedPapersPanel";
 import { WorkspaceLayout } from "@/components/WorkspaceLayout";
 import { useSessionAnalysis } from "@/hooks/useSessionAnalysis";
 import {
+  CrossPaperReference,
   MAX_SESSION_PAPERS,
   MIN_ANALYSIS_PAPERS,
   SessionPaper,
@@ -28,6 +29,9 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  const [activeReference, setActiveReference] = useState<CrossPaperReference | null>(
+    null,
+  );
   const { analyzeSession, error, isLoading, result } = useSessionAnalysis();
 
   const activePaper =
@@ -96,6 +100,7 @@ export default function Home() {
 
     setMode("analysis");
     setViewerError(null);
+    setActiveReference(null);
     setActivePaperId((current) => current ?? papers[0]?.id ?? null);
     await analyzeSession(papers.map((paper) => paper.id));
   };
@@ -122,6 +127,7 @@ export default function Home() {
                 papers={papers}
                 onSelectPaper={(paperId) => {
                   setActivePaperId(paperId);
+                  setActiveReference(null);
                   setViewerError(null);
                 }}
               />
@@ -130,6 +136,20 @@ export default function Home() {
               {activePaper ? (
                 <PdfViewer
                   documentLabel={activePaper.title || activePaper.filename}
+                  focusNote={
+                    activeReference &&
+                    (activeReference.paperId === activePaper.id ||
+                      activeReference.filename === activePaper.filename)
+                      ? buildReferenceNote(activeReference)
+                      : null
+                  }
+                  initialPage={
+                    activeReference &&
+                    (activeReference.paperId === activePaper.id ||
+                      activeReference.filename === activePaper.filename)
+                      ? activeReference.pageNumber
+                      : null
+                  }
                   onLoadError={(loadError) => {
                     setViewerError(
                       `This PDF could not be loaded. ${loadError.message || "Check the server logs for details."}`,
@@ -155,6 +175,18 @@ export default function Home() {
           ) : (
             <CrossPaperInsightsPanel
               error={error}
+              onReferenceSelect={(reference) => {
+                setActiveReference(reference);
+                const matchingPaper = papers.find(
+                  (paper) =>
+                    (reference.paperId && paper.id === reference.paperId) ||
+                    paper.filename === reference.filename,
+                );
+                if (matchingPaper) {
+                  setActivePaperId(matchingPaper.id);
+                  setViewerError(null);
+                }
+              }}
               onRetry={() => void analyzeSession(papers.map((paper) => paper.id))}
               papers={papers}
               result={result}
@@ -242,4 +274,15 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+function buildReferenceNote(reference: CrossPaperReference): string {
+  const location = [
+    reference.pageNumber ? `Page ${reference.pageNumber}` : null,
+    reference.section || null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return `${location ? `${location} · ` : ""}${reference.snippet}`;
 }

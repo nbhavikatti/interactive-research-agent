@@ -1,6 +1,6 @@
-import { NextRequest } from "next/server";
-import { streamResponseText } from "@/lib/llm-client";
-import { parseJsonResponse } from "@/lib/json-response-parser";
+import { NextRequest, NextResponse } from "next/server";
+import { normalizeCrossPaperAnalysis } from "@/lib/cross-paper-analysis";
+import { generateStructuredAnalysis } from "@/lib/llm-client";
 import { paperStore, StoredPaper } from "@/lib/paper-store";
 import { buildCrossPaperPrompt } from "@/lib/prompt-builder";
 import {
@@ -25,17 +25,17 @@ export async function POST(req: NextRequest) {
       uniquePaperIds.length < MIN_ANALYSIS_PAPERS ||
       uniquePaperIds.length > MAX_SESSION_PAPERS
     ) {
-      return new Response(
-        JSON.stringify({
+      return NextResponse.json(
+        {
           error: `Provide between ${MIN_ANALYSIS_PAPERS} and ${MAX_SESSION_PAPERS} papers.`,
-        }),
+        },
         { status: 400 },
       );
     }
 
     if (!process.env.OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "OPENAI_API_KEY is not configured." }),
+      return NextResponse.json(
+        { error: "OPENAI_API_KEY is not configured." },
         { status: 500 },
       );
     }
@@ -45,14 +45,16 @@ export async function POST(req: NextRequest) {
     );
 
     if (papers.some((paper) => !paper)) {
-      return new Response(JSON.stringify({ error: "One or more papers were not found." }), {
-        status: 404,
-      });
+      return NextResponse.json(
+        { error: "One or more papers were not found." },
+        { status: 404 },
+      );
     }
 
     const storedPapers = papers.filter(
       (paper): paper is StoredPaper => Boolean(paper),
     );
+
     const prompt = buildCrossPaperPrompt({
       papers: storedPapers.map((paper) => ({
         id: paper.id,
@@ -62,46 +64,44 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        let accumulated = "";
-
-        try {
-          for await (const chunk of streamResponseText(prompt)) {
-            accumulated += chunk;
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`),
-            );
-          }
-
-          const parsed = parseJsonResponse(accumulated);
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ result: parsed })}\n\n`),
-          );
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: "Cross-paper analysis failed." })}\n\n`,
-            ),
-          );
-          controller.close();
-        }
-      },
+    const { parsed, rawText } = await generateStructuredAnalysis(prompt);
+    const normalized = normalizeCrossPaperAnalysis({
+      raw: parsed,
+      rawOutput: rawText,
     });
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
+    if (!normalized.result) {
+      console.error("Cross-paper analysis parse failed", {
+        paperIds: uniquePaperIds,
+        rawOutputPreview: rawText.slice(0, 4000),
+      });
+
+      return NextResponse.json(
+        {
+          debug: normalized.debug,
+          error: "Could not parse the cross-paper analysis.",
+        },
+        { status: 502 },
+      );
+    }
+
+    if (normalized.debug.parseWarning) {
+      console.warn("Cross-paper analysis partially normalized", {
+        paperIds: uniquePaperIds,
+        parseWarning: normalized.debug.parseWarning,
+        rawOutputPreview: rawText.slice(0, 2000),
+      });
+    }
+
+    return NextResponse.json({
+      debug: normalized.debug,
+      result: normalized.result,
     });
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid request payload" }), {
-      status: 400,
-    });
+  } catch (error) {
+    console.error("Cross-paper analysis request failed", error);
+    return NextResponse.json(
+      { error: "Cross-paper analysis failed." },
+      { status: 500 },
+    );
   }
 }

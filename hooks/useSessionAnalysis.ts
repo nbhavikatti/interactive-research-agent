@@ -1,17 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { CrossPaperAnalysisResult } from "@/lib/session-types";
+import {
+  CrossPaperAnalysisDebug,
+  CrossPaperAnalysisResult,
+} from "@/lib/session-types";
+
+interface AnalyzeSessionResponse {
+  debug?: CrossPaperAnalysisDebug;
+  error?: string;
+  result?: CrossPaperAnalysisResult | null;
+}
 
 export function useSessionAnalysis() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<CrossPaperAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<CrossPaperAnalysisDebug | null>(null);
 
   const analyzeSession = async (paperIds: string[]) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setDebug(null);
 
     try {
       const response = await fetch("/api/analyze", {
@@ -22,60 +33,22 @@ export function useSessionAnalysis() {
         body: JSON.stringify({ paperIds }),
       });
 
-      if (!response.ok || !response.body) {
-        const payload = await response.json().catch(() => null);
+      const payload = (await response.json().catch(() => null)) as
+        | AnalyzeSessionResponse
+        | null;
+
+      if (!response.ok) {
+        setDebug(payload?.debug ?? null);
         throw new Error(payload?.error ?? "Cross-paper analysis failed.");
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let serverResult: CrossPaperAnalysisResult | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split("\n\n");
-        buffer = events.pop() ?? "";
-
-        for (const event of events) {
-          const lines = event
-            .split("\n")
-            .filter((line) => line.startsWith("data:"))
-            .map((line) => line.replace(/^data:\s?/, ""));
-
-          for (const line of lines) {
-            if (line === "[DONE]") {
-              continue;
-            }
-
-            let parsed: Record<string, unknown>;
-            try {
-              parsed = JSON.parse(line);
-            } catch {
-              continue;
-            }
-
-            if (parsed.error) {
-              throw new Error(parsed.error as string);
-            }
-
-            if (parsed.result) {
-              serverResult = parsed.result as CrossPaperAnalysisResult;
-            }
-          }
-        }
-      }
-
-      if (!serverResult) {
+      if (!payload?.result) {
+        setDebug(payload?.debug ?? null);
         throw new Error("Could not parse the cross-paper analysis.");
       }
 
-      setResult(serverResult);
+      setDebug(payload.debug ?? null);
+      setResult(payload.result);
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -87,5 +60,5 @@ export function useSessionAnalysis() {
     }
   };
 
-  return { analyzeSession, error, isLoading, result };
+  return { analyzeSession, debug, error, isLoading, result };
 }

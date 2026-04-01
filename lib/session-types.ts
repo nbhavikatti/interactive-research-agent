@@ -8,6 +8,23 @@ export interface SessionPaper {
   pageCount: number;
 }
 
+export interface CrossPaperReference {
+  paperId: string;
+  filename: string;
+  paperTitle: string;
+  pageNumber: number | null;
+  section: string | null;
+  snippet: string;
+}
+
+export interface CrossPaperInsight {
+  id: string;
+  title: string;
+  insight: string;
+  whyItMatters: string;
+  references: CrossPaperReference[];
+}
+
 export interface CrossPaperSnapshot {
   paperId: string;
   title: string;
@@ -15,10 +32,16 @@ export interface CrossPaperSnapshot {
   notableAngle: string;
 }
 
+export interface CrossPaperAnalysisDebug {
+  rawOutputPreview: string;
+  parseWarning: string | null;
+  usedFallbackNormalization: boolean;
+}
+
 export interface CrossPaperAnalysisResult {
   overview: string;
-  sharedThemes: string[];
-  keyDifferences: string[];
-  crossPaperOpportunities: string[];
+  insights: CrossPaperInsight[];
   paperSnapshots: CrossPaperSnapshot[];
+  warnings: string[];
+  debug?: CrossPaperAnalysisDebug;
 }

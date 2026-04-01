@@ -62,8 +62,8 @@ export function buildCrossPaperPrompt(input: CrossPaperPromptInput): string {
   const papersContext = input.papers
     .map((paper) => {
       const excerpts = paper.pages
-        .slice(0, 3)
-        .map((page) => `--- Page ${page.pageNum} ---\n${page.text.slice(0, 1800)}`)
+        .slice(0, 5)
+        .map((page) => `--- Page ${page.pageNum} ---\n${page.text.slice(0, 1400)}`)
         .join("\n\n");
 
       return `=== PAPER ${paper.id} ===
@@ -80,24 +80,30 @@ Use the paper excerpts below to produce a concise but thoughtful synthesis.
 
 ${papersContext}
 
-Respond with raw JSON only using this exact structure:
+Return valid JSON only. Do not wrap the response in markdown fences.
+Every insight must be grounded in at least one supporting reference from the provided paper excerpts.
+If page numbers are available from the excerpt headers, include them. If section names are not available, use null.
+
+Use exactly this structure:
 
 {
   "overview": "A 3-5 sentence synthesis of the paper set as a whole.",
-  "sharedThemes": [
-    "Theme 1",
-    "Theme 2",
-    "Theme 3"
-  ],
-  "keyDifferences": [
-    "Difference 1",
-    "Difference 2",
-    "Difference 3"
-  ],
-  "crossPaperOpportunities": [
-    "Opportunity 1",
-    "Opportunity 2",
-    "Opportunity 3"
+  "insights": [
+    {
+      "title": "A short insight title",
+      "insight": "The actual cross-paper insight.",
+      "whyItMatters": "Why this matters for understanding or decision-making.",
+      "references": [
+        {
+          "paperId": "paper id from input",
+          "filename": "filename from input",
+          "paperTitle": "paper title from input",
+          "pageNumber": 1,
+          "section": null,
+          "snippet": "Short supporting excerpt copied or tightly paraphrased from the provided paper text."
+        }
+      ]
+    }
   ],
   "paperSnapshots": [
     {
@@ -111,8 +117,12 @@ Respond with raw JSON only using this exact structure:
 
 Rules:
 - Keep the response grounded in the provided content.
-- Mention uncertainties implicitly when evidence is thin rather than inventing details.
-- Return 3 to 5 items for sharedThemes, keyDifferences, and crossPaperOpportunities.
+- Mention uncertainties explicitly when evidence is thin rather than inventing details.
+- Return 4 to 6 insight objects.
 - Include one paperSnapshots entry per paper.
-- Keep every bullet self-contained and specific.`;
+- Each insight must include 1 to 3 references.
+- Use exact paper ids, filenames, and titles from the input.
+- Keep snippets short, specific, and attributable.
+- Do not invent page numbers.
+- If a field is unknown, use null instead of omitting it.`;
 }

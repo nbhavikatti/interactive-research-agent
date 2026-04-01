@@ -16,6 +16,8 @@ interface PdfViewerProps {
   onExplain?: (selection: ExplainSelection) => void;
   onLoadError?: (error: Error) => void;
   documentLabel?: string;
+  focusNote?: string | null;
+  initialPage?: number | null;
 }
 
 export function PdfViewer({
@@ -23,6 +25,8 @@ export function PdfViewer({
   onExplain,
   onLoadError,
   documentLabel,
+  focusNote,
+  initialPage,
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pageSurfaceRef = useRef<HTMLDivElement>(null);
@@ -54,12 +58,19 @@ export function PdfViewer({
     clearSelection();
   }, [clearSelection, pdfUrl]);
 
+  useEffect(() => {
+    if (initialPage && initialPage > 0) {
+      setCurrentPage(initialPage);
+      clearSelection();
+    }
+  }, [clearSelection, initialPage]);
+
   const pageWidth = Math.max(Math.min(surfaceWidth - 48, 900), 320);
 
   return (
     <div className="flex h-full flex-col bg-[#eef1f5]">
       <div className="border-b border-gray-200 bg-white px-4 py-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <p className="text-sm font-medium text-gray-700">
             Page {currentPage}
             {numPages > 0 ? ` of ${numPages}` : ""}
@@ -94,6 +105,11 @@ export function PdfViewer({
             </button>
           </div>
         </div>
+        {focusNote ? (
+          <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+            {focusNote}
+          </div>
+        ) : null}
       </div>
 
       <div ref={containerRef} className="min-h-0 flex-1 overflow-auto p-6">

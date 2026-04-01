@@ -1,12 +1,17 @@
 "use client";
 
-import { CrossPaperAnalysisResult, SessionPaper } from "@/lib/session-types";
+import {
+  CrossPaperAnalysisResult,
+  CrossPaperReference,
+  SessionPaper,
+} from "@/lib/session-types";
 
 interface CrossPaperInsightsPanelProps {
   papers: SessionPaper[];
   state: "idle" | "loading" | "result" | "error";
   result?: CrossPaperAnalysisResult | null;
   error?: string | null;
+  onReferenceSelect?: (reference: CrossPaperReference) => void;
   onRetry?: () => void;
 }
 
@@ -15,6 +20,7 @@ export function CrossPaperInsightsPanel({
   state,
   result,
   error,
+  onReferenceSelect,
   onRetry,
 }: CrossPaperInsightsPanelProps) {
   if (state === "loading") {
@@ -23,9 +29,9 @@ export function CrossPaperInsightsPanel({
         <Header papers={papers} />
         <div className="space-y-3">
           <div className="h-4 w-32 animate-pulse rounded-full bg-slate-700" />
-          <div className="h-20 animate-pulse rounded-3xl bg-slate-900" />
-          <div className="h-20 animate-pulse rounded-3xl bg-slate-900" />
-          <div className="h-20 animate-pulse rounded-3xl bg-slate-900" />
+          <div className="h-36 animate-pulse rounded-3xl bg-slate-900" />
+          <div className="h-36 animate-pulse rounded-3xl bg-slate-900" />
+          <div className="h-36 animate-pulse rounded-3xl bg-slate-900" />
         </div>
       </div>
     );
@@ -62,9 +68,8 @@ export function CrossPaperInsightsPanel({
             Compare themes across the session
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-400">
-            Your uploaded papers stay available for reference while the analysis
-            surface focuses on shared ideas, differences, and follow-on
-            opportunities across the set.
+            This pane now focuses on verifiable cross-paper claims, with source
+            references you can open in the middle viewer.
           </p>
         </div>
       </div>
@@ -82,47 +87,100 @@ export function CrossPaperInsightsPanel({
         <p className="mt-3 text-sm leading-7 text-slate-300">{result.overview}</p>
       </section>
 
-      <InsightList
-        items={result.sharedThemes}
-        title="Shared themes"
-        tone="amber"
-      />
-      <InsightList
-        items={result.keyDifferences}
-        title="Key differences"
-        tone="sky"
-      />
-      <InsightList
-        items={result.crossPaperOpportunities}
-        title="Idea opportunities"
-        tone="emerald"
-      />
+      {result.warnings.length > 0 ? (
+        <section className="rounded-[24px] border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+          <p className="font-medium">Analysis warnings</p>
+          <ul className="mt-2 space-y-2 text-amber-100/90">
+            {result.warnings.map((warning, index) => (
+              <li key={`warning-${index}`}>{warning}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
-      <section className="rounded-[28px] border border-slate-800 bg-slate-950/75 p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
-          Paper snapshots
-        </p>
-        <div className="mt-4 space-y-3">
-          {result.paperSnapshots.map((snapshot) => (
-            <article
-              key={snapshot.paperId}
-              className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
-            >
-              <h3 className="text-sm font-semibold text-slate-100">
-                {snapshot.title}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                <span className="font-medium text-slate-100">Focus:</span>{" "}
-                {snapshot.focus}
+      <section className="space-y-4">
+        {result.insights.map((insight) => (
+          <article
+            key={insight.id}
+            className="rounded-[28px] border border-slate-800 bg-slate-950/75 p-5 shadow-sm"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
+              Insight
+            </p>
+            <h2 className="mt-3 text-xl font-semibold text-slate-50">
+              {insight.title}
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-200">
+              {insight.insight}
+            </p>
+
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
+                Why it matters
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-300">
-                <span className="font-medium text-slate-100">Notable angle:</span>{" "}
-                {snapshot.notableAngle}
+                {insight.whyItMatters}
               </p>
-            </article>
-          ))}
-        </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
+                Supporting references
+              </p>
+              <div className="mt-3 space-y-3">
+                {insight.references.map((reference, index) => (
+                  <button
+                    key={`${insight.id}-reference-${index}`}
+                    className="block w-full rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-left transition hover:border-sky-400/40 hover:bg-slate-900"
+                    onClick={() => onReferenceSelect?.(reference)}
+                    type="button"
+                  >
+                    <p className="text-sm font-semibold text-slate-100">
+                      {reference.paperTitle || reference.filename}
+                    </p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                      {reference.filename}
+                      {reference.pageNumber ? ` · Page ${reference.pageNumber}` : ""}
+                      {reference.section ? ` · ${reference.section}` : ""}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                      {reference.snippet}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </article>
+        ))}
       </section>
+
+      {result.paperSnapshots.length > 0 ? (
+        <section className="rounded-[28px] border border-slate-800 bg-slate-950/75 p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
+            Paper snapshots
+          </p>
+          <div className="mt-4 space-y-3">
+            {result.paperSnapshots.map((snapshot) => (
+              <article
+                key={snapshot.paperId}
+                className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
+              >
+                <h3 className="text-sm font-semibold text-slate-100">
+                  {snapshot.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  <span className="font-medium text-slate-100">Focus:</span>{" "}
+                  {snapshot.focus}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  <span className="font-medium text-slate-100">Notable angle:</span>{" "}
+                  {snapshot.notableAngle}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -137,43 +195,9 @@ function Header({ papers }: { papers: SessionPaper[] }) {
         Cross-paper insights for {papers.length} uploaded papers
       </h1>
       <p className="mt-3 text-sm leading-6 text-slate-400">
-        This view is tuned for comparison, synthesis, and idea generation across
-        the session rather than single-paper passage explanation.
+        Each claim includes source references so you can open the supporting
+        paper in the middle pane and verify it directly.
       </p>
-    </section>
-  );
-}
-
-function InsightList({
-  items,
-  title,
-  tone,
-}: {
-  items: string[];
-  title: string;
-  tone: "amber" | "sky" | "emerald";
-}) {
-  const toneClasses = {
-    amber: "bg-cyan-500/8 text-cyan-100 border-cyan-400/20",
-    sky: "bg-sky-500/8 text-sky-100 border-sky-400/20",
-    emerald: "bg-blue-500/8 text-blue-100 border-blue-400/20",
-  };
-
-  return (
-    <section className="rounded-[28px] border border-slate-800 bg-slate-950/75 p-5 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
-        {title}
-      </p>
-      <ul className="mt-4 space-y-3">
-        {items.map((item, index) => (
-          <li
-            key={`${title}-${index}`}
-            className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${toneClasses[tone]}`}
-          >
-            {item}
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

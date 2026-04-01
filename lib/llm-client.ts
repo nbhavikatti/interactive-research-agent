@@ -1,9 +1,15 @@
 import OpenAI from "openai";
+import { parseJsonResponse } from "@/lib/json-response-parser";
 
 interface ExtractPaperTitleInput {
   firstPageText: string;
   topBlocks: string[];
   fallbackTitle: string;
+}
+
+interface GenerateStructuredAnalysisResult {
+  parsed: Record<string, unknown> | null;
+  rawText: string;
 }
 
 export async function* streamResponseText(prompt: string): AsyncGenerator<string> {
@@ -29,6 +35,99 @@ export async function* streamExplanation(
   prompt: string,
 ): AsyncGenerator<string> {
   yield* streamResponseText(prompt);
+}
+
+export async function generateStructuredAnalysis(
+  prompt: string,
+): Promise<GenerateStructuredAnalysisResult> {
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const response = await client.responses.create({
+    model: "gpt-5",
+    input: prompt,
+    max_output_tokens: 2800,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "cross_paper_analysis",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["overview", "insights", "paperSnapshots"],
+          properties: {
+            overview: { type: "string" },
+            insights: {
+              type: "array",
+              minItems: 1,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["title", "insight", "whyItMatters", "references"],
+                properties: {
+                  title: { type: "string" },
+                  insight: { type: "string" },
+                  whyItMatters: { type: "string" },
+                  references: {
+                    type: "array",
+                    minItems: 1,
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      required: [
+                        "paperId",
+                        "filename",
+                        "paperTitle",
+                        "pageNumber",
+                        "section",
+                        "snippet",
+                      ],
+                      properties: {
+                        paperId: { type: "string" },
+                        filename: { type: "string" },
+                        paperTitle: { type: "string" },
+                        pageNumber: {
+                          anyOf: [{ type: "integer" }, { type: "null" }],
+                        },
+                        section: {
+                          anyOf: [{ type: "string" }, { type: "null" }],
+                        },
+                        snippet: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            paperSnapshots: {
+              type: "array",
+              minItems: 1,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["paperId", "title", "focus", "notableAngle"],
+                properties: {
+                  paperId: { type: "string" },
+                  title: { type: "string" },
+                  focus: { type: "string" },
+                  notableAngle: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const rawText = response.output_text ?? "";
+
+  return {
+    parsed: parseJsonResponse(rawText),
+    rawText,
+  };
 }
 
 export async function extractPaperTitle({
