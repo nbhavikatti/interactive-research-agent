@@ -1,6 +1,6 @@
 import { createCanvas } from "canvas";
 
-export async function renderFirstPageImage(buffer: Buffer): Promise<string> {
+export async function renderFirstPagePngBuffer(buffer: Buffer): Promise<Buffer> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.js");
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(buffer),
@@ -24,8 +24,13 @@ export async function renderFirstPageImage(buffer: Buffer): Promise<string> {
       viewport,
     }).promise;
 
-    return canvas.toDataURL("image/png");
+    return canvas.toBuffer("image/png");
   } finally {
     await pdf.destroy();
   }
+}
+
+export async function renderFirstPageImage(buffer: Buffer): Promise<string> {
+  const pngBuffer = await renderFirstPagePngBuffer(buffer);
+  return `data:image/png;base64,${pngBuffer.toString("base64")}`;
 }
