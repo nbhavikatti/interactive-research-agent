@@ -32,9 +32,14 @@ export async function GET(
         "Content-Type": "image/png",
       },
     });
-  } catch {
+  } catch (errorValue) {
+    const message =
+      errorValue instanceof Error
+        ? errorValue.message
+        : "Unknown render error";
+
     return NextResponse.json(
-      { error: "Could not render first-page preview" },
+      { error: "Could not render first-page preview", detail: message },
       { status: 500 },
     );
   }
