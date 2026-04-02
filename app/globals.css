@@ -77,11 +77,16 @@ body {
 }
 
 .react-pdf__Page__textContent {
+  font-kerning: none;
+  font-variant-ligatures: none;
+  text-rendering: geometricPrecision;
   user-select: text;
 }
 
 .react-pdf__Page__textContent span {
   cursor: text;
+  font-kerning: none;
+  font-variant-ligatures: none;
 }
 
 .react-pdf__Page {
