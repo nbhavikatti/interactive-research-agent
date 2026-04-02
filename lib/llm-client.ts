@@ -53,7 +53,7 @@ export async function generateStructuredAnalysis(
   const response = await client.responses.parse({
     model: "gpt-5",
     input: prompt,
-    max_output_tokens: 4200,
+    max_output_tokens: 6000,
     text: {
       format: {
         type: "json_schema",
