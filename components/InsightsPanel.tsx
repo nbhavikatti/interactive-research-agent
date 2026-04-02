@@ -25,17 +25,10 @@ interface InsightsPanelProps {
 
 export function InsightsPanel({
   state,
-  selectedText,
   insight,
   error,
   onRetry,
 }: InsightsPanelProps) {
-  const quote = selectedText ? (
-    <blockquote className="rounded-2xl border-l-4 border-indigo-500 bg-indigo-50 px-4 py-3 text-sm leading-6 text-indigo-900">
-      {selectedText}
-    </blockquote>
-  ) : null;
-
   if (state === "empty") {
     return (
       <div className="flex min-h-full items-center justify-center p-8 transition-opacity duration-150">
@@ -55,7 +48,6 @@ export function InsightsPanel({
   if (state === "loading") {
     return (
       <div className="space-y-5 p-6 transition-opacity duration-150">
-        {quote}
         <SkeletonLoader />
       </div>
     );
@@ -64,7 +56,6 @@ export function InsightsPanel({
   if (state === "error") {
     return (
       <div className="space-y-5 p-6 transition-opacity duration-150">
-        {quote}
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p>{error ?? "Something went wrong while generating the explanation."}</p>
           {onRetry ? (
@@ -87,7 +78,6 @@ export function InsightsPanel({
 
   return (
     <div className="space-y-5 p-6 transition-opacity duration-150">
-      {quote}
       <ExplanationCard explanation={insight.explanation} />
       <DiagramRenderer mermaidCode={insight.diagram.code} />
     </div>
