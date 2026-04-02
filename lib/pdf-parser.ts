@@ -1,7 +1,6 @@
 import pdfParse from "pdf-parse";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import { extractPaperTitle } from "@/lib/llm-client";
-import { renderFirstPageImage } from "@/lib/pdf-page-image";
 
 export interface ParsedPage {
   pageNum: number;
@@ -28,6 +27,7 @@ interface CandidateLine {
 export async function parsePdf(
   buffer: Buffer,
   filename = "paper.pdf",
+  firstPageImage: string | null = null,
 ): Promise<ParsedPaper> {
   const data = await pdfParse(buffer);
   const fullText = data.text ?? "";
@@ -47,7 +47,6 @@ export async function parsePdf(
 
   const firstPageSignals = await extractFirstPageSignals(buffer, pages[0]?.text ?? "");
   const fallbackTitle = fallbackTitleFromSignals(firstPageSignals);
-  const firstPageImage = await renderFirstPageImage(buffer).catch(() => null);
 
   const llmTitle = process.env.OPENAI_API_KEY && firstPageImage
     ? await extractPaperTitle({

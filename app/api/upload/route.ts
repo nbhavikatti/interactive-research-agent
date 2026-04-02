@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file");
+    const firstPageImageValue = formData.get("firstPageImage");
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Invalid file" }, { status: 400 });
@@ -25,11 +26,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid file" }, { status: 400 });
     }
 
+    const firstPageImage =
+      typeof firstPageImageValue === "string" &&
+      firstPageImageValue.startsWith("data:image/")
+        ? firstPageImageValue
+        : null;
+
     const id = randomUUID();
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const [parsed, pdfBlobUrl] = await Promise.all([
-      parsePdf(buffer, file.name),
+      parsePdf(buffer, file.name, firstPageImage),
       paperStore.savePdf(id, buffer),
     ]);
 

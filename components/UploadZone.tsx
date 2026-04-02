@@ -1,9 +1,11 @@
 "use client";
 
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
+import { pdfjs } from "react-pdf";
+import "@/lib/pdf-worker-setup";
 
 interface UploadZoneProps {
-  onFileSelected: (file: File) => void;
+  onFileSelected: (file: File, firstPageImage: string | null) => void | Promise<void>;
   disabled?: boolean;
   helperText?: string;
   supportingText?: string;
@@ -21,7 +23,7 @@ export function UploadZone({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const validateAndSubmit = (file: File | null) => {
+  const validateAndSubmit = async (file: File | null) => {
     if (!file) {
       return;
     }
@@ -40,7 +42,12 @@ export function UploadZone({
     }
 
     setError(null);
-    onFileSelected(file);
+    try {
+      const firstPageImage = await renderFirstPageImage(file);
+      await onFileSelected(file, firstPageImage);
+    } catch {
+      setError("Could not render the first page of this PDF in the browser.");
+    }
   };
 
   const handleDrop = (event: DragEvent<HTMLButtonElement>) => {
@@ -49,7 +56,7 @@ export function UploadZone({
     if (disabled) {
       return;
     }
-    validateAndSubmit(event.dataTransfer.files[0] ?? null);
+    void validateAndSubmit(event.dataTransfer.files[0] ?? null);
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -57,7 +64,7 @@ export function UploadZone({
       event.target.value = "";
       return;
     }
-    validateAndSubmit(event.target.files?.[0] ?? null);
+    void validateAndSubmit(event.target.files?.[0] ?? null);
     event.target.value = "";
   };
 
@@ -128,4 +135,39 @@ export function UploadZone({
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
     </div>
   );
+}
+
+async function renderFirstPageImage(file: File): Promise<string | null> {
+  const pdfBuffer = await file.arrayBuffer();
+  const loadingTask = pdfjs.getDocument({
+    data: pdfBuffer,
+    useWorkerFetch: false,
+  });
+  const pdf = await loadingTask.promise;
+
+  try {
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2.2 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error("Canvas context unavailable");
+    }
+
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({
+      canvasContext: context,
+      viewport,
+    }).promise;
+
+    return canvas.toDataURL("image/png");
+  } finally {
+    await pdf.destroy();
+  }
 }

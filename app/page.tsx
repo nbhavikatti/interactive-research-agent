@@ -40,7 +40,7 @@ export default function Home() {
   const canUploadMore = papers.length < MAX_SESSION_PAPERS;
   const canAnalyze = papers.length >= MIN_ANALYSIS_PAPERS && !isUploading;
 
-  const handleFileSelected = async (file: File) => {
+  const handleFileSelected = async (file: File, firstPageImage: string | null) => {
     if (!canUploadMore) {
       return;
     }
@@ -50,6 +50,9 @@ export default function Home() {
 
     const formData = new FormData();
     formData.append("file", file);
+    if (firstPageImage) {
+      formData.append("firstPageImage", firstPageImage);
+    }
 
     try {
       const response = await fetch("/api/upload", {
@@ -235,7 +238,9 @@ export default function Home() {
                 <UploadZone
                   disabled={!canUploadMore}
                   helperText="Upload up to 5 research papers and we will provide cross-paper insights and analysis."
-                  onFileSelected={(file) => void handleFileSelected(file)}
+                  onFileSelected={(file, firstPageImage) =>
+                    void handleFileSelected(file, firstPageImage)
+                  }
                   supportingText={`${papers.length} / ${MAX_SESSION_PAPERS} papers uploaded`}
                 />
               )}
