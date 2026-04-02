@@ -6,6 +6,11 @@ interface ExtractPaperTitleInput {
   fallbackTitle: string;
 }
 
+export interface ExtractPaperTitleResult {
+  cleanedTitle: string | null;
+  rawOutput: string;
+}
+
 interface GenerateStructuredAnalysisResult {
   parsed: Record<string, unknown> | null;
   rawText: string;
@@ -135,7 +140,7 @@ export async function generateStructuredAnalysis(
 export async function extractPaperTitle({
   firstPageImage,
   fallbackTitle,
-}: ExtractPaperTitleInput): Promise<string | null> {
+}: ExtractPaperTitleInput): Promise<ExtractPaperTitleResult> {
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
@@ -172,9 +177,13 @@ Fallback heuristic title: ${fallbackTitle}`,
     max_output_tokens: 120,
   });
 
-  const title = response.output_text?.trim();
+  const rawOutput = response.output_text?.trim() ?? "";
+  const title = rawOutput;
   if (!title) {
-    return null;
+    return {
+      cleanedTitle: null,
+      rawOutput,
+    };
   }
 
   const cleaned = title
@@ -183,8 +192,14 @@ Fallback heuristic title: ${fallbackTitle}`,
     .trim();
 
   if (!cleaned || cleaned.length > 220) {
-    return null;
+    return {
+      cleanedTitle: null,
+      rawOutput,
+    };
   }
 
-  return cleaned;
+  return {
+    cleanedTitle: cleaned,
+    rawOutput,
+  };
 }

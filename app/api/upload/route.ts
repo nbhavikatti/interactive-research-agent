@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
+      debug: parsed.debug,
       paperId: id,
       firstPagePreviewUrl: firstPagePreviewUrl
         ? `/api/pdf-preview/${id}`

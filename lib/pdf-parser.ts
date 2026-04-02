@@ -10,6 +10,16 @@ export interface ParsedPage {
 export interface ParsedPaper {
   title: string;
   pages: ParsedPage[];
+  debug: {
+    fallbackTitle: string;
+    finalTitle: string;
+    firstPageImageProvided: boolean;
+    llmAttempted: boolean;
+    llmError: string | null;
+    llmRawOutput: string | null;
+    llmTitle: string | null;
+    usedFallbackTitle: boolean;
+  };
 }
 
 interface FirstPageSignals {
@@ -48,16 +58,39 @@ export async function parsePdf(
   const firstPageSignals = await extractFirstPageSignals(buffer, pages[0]?.text ?? "");
   const fallbackTitle = fallbackTitleFromSignals(firstPageSignals);
 
-  const llmTitle = process.env.OPENAI_API_KEY && firstPageImage
-    ? await extractPaperTitle({
+  const llmAttempted = Boolean(process.env.OPENAI_API_KEY && firstPageImage);
+  let llmError: string | null = null;
+  let llmRawOutput: string | null = null;
+  let llmTitle: string | null = null;
+
+  if (llmAttempted) {
+    try {
+      const result = await extractPaperTitle({
         fallbackTitle,
-        firstPageImage,
-      }).catch(() => null)
-    : null;
+        firstPageImage: firstPageImage as string,
+      });
+      llmRawOutput = result.rawOutput;
+      llmTitle = result.cleanedTitle;
+    } catch (errorValue) {
+      llmError = errorValue instanceof Error ? errorValue.message : "Unknown LLM error";
+    }
+  }
+
+  const finalTitle = normalizeTitle(llmTitle || fallbackTitle || "Untitled Paper");
 
   return {
-    title: normalizeTitle(llmTitle || fallbackTitle || "Untitled Paper"),
+    title: finalTitle,
     pages,
+    debug: {
+      fallbackTitle,
+      finalTitle,
+      firstPageImageProvided: Boolean(firstPageImage),
+      llmAttempted,
+      llmError,
+      llmRawOutput,
+      llmTitle,
+      usedFallbackTitle: !llmTitle,
+    },
   };
 }
 
