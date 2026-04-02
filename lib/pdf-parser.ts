@@ -17,6 +17,7 @@ export interface ParsedPaper {
     llmAttempted: boolean;
     llmError: string | null;
     llmRawOutput: string | null;
+    llmResponseDebug: Record<string, unknown> | null;
     llmTitle: string | null;
     usedFallbackTitle: boolean;
   };
@@ -61,6 +62,7 @@ export async function parsePdf(
   const llmAttempted = Boolean(process.env.OPENAI_API_KEY && firstPageImage);
   let llmError: string | null = null;
   let llmRawOutput: string | null = null;
+  let llmResponseDebug: Record<string, unknown> | null = null;
   let llmTitle: string | null = null;
 
   if (llmAttempted) {
@@ -70,6 +72,7 @@ export async function parsePdf(
         firstPageImage: firstPageImage as string,
       });
       llmRawOutput = result.rawOutput;
+      llmResponseDebug = result.responseDebug;
       llmTitle = result.cleanedTitle;
     } catch (errorValue) {
       llmError = errorValue instanceof Error ? errorValue.message : "Unknown LLM error";
@@ -88,6 +91,7 @@ export async function parsePdf(
       llmAttempted,
       llmError,
       llmRawOutput,
+      llmResponseDebug,
       llmTitle,
       usedFallbackTitle: !llmTitle,
     },

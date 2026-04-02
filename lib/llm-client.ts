@@ -9,6 +9,7 @@ interface ExtractPaperTitleInput {
 export interface ExtractPaperTitleResult {
   cleanedTitle: string | null;
   rawOutput: string;
+  responseDebug: Record<string, unknown>;
 }
 
 interface GenerateStructuredAnalysisResult {
@@ -178,11 +179,37 @@ Fallback heuristic title: ${fallbackTitle}`,
   });
 
   const rawOutput = response.output_text?.trim() ?? "";
+  const responseDebug = {
+    id: response.id,
+    incompleteDetails: response.incomplete_details ?? null,
+    model: response.model,
+    output: response.output.map((item) => ({
+      id: item.id,
+      role: "role" in item ? item.role : null,
+      status: "status" in item ? item.status ?? null : null,
+      type: item.type,
+      content:
+        "content" in item && Array.isArray(item.content)
+          ? item.content.map((contentItem) => ({
+              text:
+                "text" in contentItem && typeof contentItem.text === "string"
+                  ? contentItem.text
+                  : null,
+              type: contentItem.type,
+            }))
+          : null,
+    })),
+    outputText: response.output_text ?? "",
+    status: response.status,
+    usage: response.usage ?? null,
+  };
+
   const title = rawOutput;
   if (!title) {
     return {
       cleanedTitle: null,
       rawOutput,
+      responseDebug,
     };
   }
 
@@ -195,11 +222,13 @@ Fallback heuristic title: ${fallbackTitle}`,
     return {
       cleanedTitle: null,
       rawOutput,
+      responseDebug,
     };
   }
 
   return {
     cleanedTitle: cleaned,
     rawOutput,
+    responseDebug,
   };
 }
