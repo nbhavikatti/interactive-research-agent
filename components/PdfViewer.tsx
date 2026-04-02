@@ -65,7 +65,7 @@ export function PdfViewer({
     }
   }, [clearSelection, initialPage]);
 
-  const pageWidth = Math.max(Math.min(surfaceWidth - 40, 1100), 320);
+  const pageWidth = Math.floor(Math.max(Math.min(surfaceWidth, 1100), 320));
 
   return (
     <div className="flex h-full flex-col bg-[#eef1f5]">
@@ -126,15 +126,17 @@ export function PdfViewer({
             setCurrentPage((page) => Math.min(page, loadedPages));
           }}
         >
-          <div ref={pageSurfaceRef} className="mx-auto flex w-full max-w-[1180px] justify-center">
+          <div className="mx-auto flex w-full max-w-[1180px] justify-center">
             <div className="rounded-[24px] bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] ring-1 ring-gray-200">
-              <Page
-                className="mx-auto w-fit"
-                pageNumber={currentPage}
-                renderAnnotationLayer={false}
-                renderTextLayer
-                width={pageWidth}
-              />
+              <div ref={pageSurfaceRef} className="flex justify-center">
+                <Page
+                  className="mx-auto w-fit"
+                  pageNumber={currentPage}
+                  renderAnnotationLayer={false}
+                  renderTextLayer
+                  width={pageWidth}
+                />
+              </div>
             </div>
           </div>
         </Document>
