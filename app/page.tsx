@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { CrossPaperInsightsPanel } from "@/components/CrossPaperInsightsPanel";
+import { InsightsPanel } from "@/components/InsightsPanel";
 import { PdfViewer } from "@/components/PdfViewer";
 import { UploadZone } from "@/components/UploadZone";
 import { UploadedPapersPanel } from "@/components/UploadedPapersPanel";
 import { WorkspaceLayout } from "@/components/WorkspaceLayout";
 import { useSessionAnalysis } from "@/hooks/useSessionAnalysis";
+import { useStreamingExplain } from "@/hooks/useStreamingExplain";
 import {
   CrossPaperReference,
   MAX_SESSION_PAPERS,
@@ -15,11 +17,17 @@ import {
 } from "@/lib/session-types";
 
 type SessionMode = "upload" | "analysis";
+type AnalysisPanelMode = "cross-paper" | "explain-selection";
 
 interface UploadResponse {
   paperId: string;
   title: string;
   pageCount: number;
+}
+
+interface PendingSelection {
+  text: string;
+  pageNumber: number;
 }
 
 export default function Home() {
@@ -32,13 +40,32 @@ export default function Home() {
   const [activeReference, setActiveReference] = useState<CrossPaperReference | null>(
     null,
   );
+  const [analysisPanelMode, setAnalysisPanelMode] =
+    useState<AnalysisPanelMode>("cross-paper");
+  const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(
+    null,
+  );
   const { analyzeSession, error, isLoading, result } = useSessionAnalysis();
+  const {
+    error: explainError,
+    isLoading: isExplainLoading,
+    requestExplanation,
+    reset: resetExplanation,
+    result: explainResult,
+  } = useStreamingExplain();
 
   const activePaper =
     papers.find((paper) => paper.id === activePaperId) ?? papers[0] ?? null;
 
   const canUploadMore = papers.length < MAX_SESSION_PAPERS;
   const canAnalyze = papers.length >= MIN_ANALYSIS_PAPERS && !isUploading;
+  const explainPanelState = isExplainLoading
+    ? "loading"
+    : explainError
+      ? "error"
+      : explainResult
+        ? "result"
+        : "empty";
 
   const handleFileSelected = async (file: File, firstPageImage: string | null) => {
     if (!canUploadMore) {
@@ -104,8 +131,19 @@ export default function Home() {
     setMode("analysis");
     setViewerError(null);
     setActiveReference(null);
+    setAnalysisPanelMode("cross-paper");
     setActivePaperId((current) => current ?? papers[0]?.id ?? null);
     await analyzeSession(papers.map((paper) => paper.id));
+  };
+
+  const handleExplainSelection = async (selection: PendingSelection) => {
+    if (!activePaper) {
+      return;
+    }
+
+    setPendingSelection(selection);
+    setAnalysisPanelMode("explain-selection");
+    await requestExplanation(activePaper.id, selection.text, selection.pageNumber);
   };
 
   if (mode === "analysis") {
@@ -131,6 +169,9 @@ export default function Home() {
                 onSelectPaper={(paperId) => {
                   setActivePaperId(paperId);
                   setActiveReference(null);
+                  setAnalysisPanelMode("cross-paper");
+                  setPendingSelection(null);
+                  resetExplanation();
                   setViewerError(null);
                 }}
               />
@@ -158,6 +199,7 @@ export default function Home() {
                       `This PDF could not be loaded. ${loadError.message || "Check the server logs for details."}`,
                     );
                   }}
+                  onExplain={handleExplainSelection}
                   pdfUrl={`/api/pdf/${activePaper.id}`}
                 />
               ) : (
@@ -169,33 +211,81 @@ export default function Home() {
           </div>
         }
         right={
-          viewerError ? (
-            <div className="p-6">
-              <div className="rounded-[28px] border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
-                {viewerError}
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="border-b border-slate-800 bg-slate-950/70 px-4 py-4">
+              <div className="inline-flex rounded-full border border-slate-700 bg-slate-950/80 p-1">
+                <button
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    analysisPanelMode === "cross-paper"
+                      ? "bg-sky-500 text-slate-950"
+                      : "text-slate-300 hover:bg-slate-900"
+                  }`}
+                  onClick={() => setAnalysisPanelMode("cross-paper")}
+                  type="button"
+                >
+                  Cross-paper
+                </button>
+                <button
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    analysisPanelMode === "explain-selection"
+                      ? "bg-sky-500 text-slate-950"
+                      : "text-slate-300 hover:bg-slate-900"
+                  }`}
+                  onClick={() => setAnalysisPanelMode("explain-selection")}
+                  type="button"
+                >
+                  Explain selection
+                </button>
               </div>
+              {viewerError ? (
+                <div className="mt-4 rounded-[24px] border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+                  {viewerError}
+                </div>
+              ) : null}
             </div>
-          ) : (
-            <CrossPaperInsightsPanel
-              error={error}
-              onReferenceSelect={(reference) => {
-                setActiveReference(reference);
-                const matchingPaper = papers.find(
-                  (paper) =>
-                    (reference.paperId && paper.id === reference.paperId) ||
-                    paper.filename === reference.filename,
-                );
-                if (matchingPaper) {
-                  setActivePaperId(matchingPaper.id);
-                  setViewerError(null);
-                }
-              }}
-              onRetry={() => void analyzeSession(papers.map((paper) => paper.id))}
-              papers={papers}
-              result={result}
-              state={isLoading ? "loading" : error ? "error" : result ? "result" : "idle"}
-            />
-          )
+
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {analysisPanelMode === "cross-paper" ? (
+                <CrossPaperInsightsPanel
+                  error={error}
+                  onReferenceSelect={(reference) => {
+                    setActiveReference(reference);
+                    const matchingPaper = papers.find(
+                      (paper) =>
+                        (reference.paperId && paper.id === reference.paperId) ||
+                        paper.filename === reference.filename,
+                    );
+                    if (matchingPaper) {
+                      setActivePaperId(matchingPaper.id);
+                      setViewerError(null);
+                    }
+                  }}
+                  onRetry={() => void analyzeSession(papers.map((paper) => paper.id))}
+                  papers={papers}
+                  result={result}
+                  state={
+                    isLoading ? "loading" : error ? "error" : result ? "result" : "idle"
+                  }
+                />
+              ) : (
+                <InsightsPanel
+                  error={explainError}
+                  insight={explainResult}
+                  onRetry={() => {
+                    if (pendingSelection && activePaper) {
+                      void requestExplanation(
+                        activePaper.id,
+                        pendingSelection.text,
+                        pendingSelection.pageNumber,
+                      );
+                    }
+                  }}
+                  selectedText={pendingSelection?.text}
+                  state={explainPanelState}
+                />
+              )}
+            </div>
+          </div>
         }
         subtitle="Multi-paper session workspace"
         title="Interactive Research Agent"

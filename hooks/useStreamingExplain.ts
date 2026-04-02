@@ -21,6 +21,13 @@ export function useStreamingExplain() {
   const [error, setError] = useState<string | null>(null);
   const [rawResponse, setRawResponse] = useState("");
 
+  const reset = () => {
+    setIsLoading(false);
+    setResult(null);
+    setError(null);
+    setRawResponse("");
+  };
+
   const requestExplanation = async (
     paperId: string,
     selectedText: string,
@@ -106,5 +113,5 @@ export function useStreamingExplain() {
     }
   };
 
-  return { isLoading, result, error, rawResponse, requestExplanation };
+  return { isLoading, result, error, rawResponse, requestExplanation, reset };
 }
