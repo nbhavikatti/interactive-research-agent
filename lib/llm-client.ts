@@ -2,10 +2,7 @@ import OpenAI from "openai";
 import { parseJsonResponse } from "@/lib/json-response-parser";
 
 interface ExtractPaperTitleInput {
-  pdfBuffer: Buffer;
-  filename: string;
-  firstPageText: string;
-  topBlocks: string[];
+  firstPageImage: string;
   fallbackTitle: string;
 }
 
@@ -136,22 +133,12 @@ export async function generateStructuredAnalysis(
 }
 
 export async function extractPaperTitle({
-  pdfBuffer,
-  filename,
-  firstPageText,
-  topBlocks,
+  firstPageImage,
   fallbackTitle,
 }: ExtractPaperTitleInput): Promise<string | null> {
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
-
-  const topBlockText = topBlocks
-    .slice(0, 8)
-    .map((block, index) => `${index + 1}. ${block}`)
-    .join("\n");
-
-  const firstPageExcerpt = firstPageText.slice(0, 6000);
 
   const response = await client.responses.create({
     model: "gpt-5",
@@ -159,33 +146,25 @@ export async function extractPaperTitle({
       {
         role: "system",
         content:
-          "You identify the exact title of an academic paper from the provided PDF. Inspect the first page visually and use the PDF text as supporting context. Return only the paper title text with no quotes, labels, markdown, or explanation. Ignore authors, affiliations, headers, footers, conference names, dates, running heads, and section headings.",
+          "You identify the exact title of an academic paper from an image of the first page. Return only the paper title text with no quotes, labels, markdown, or explanation. Ignore authors, affiliations, headers, footers, copyright notices, attribution text, conference names, dates, and section headings.",
       },
       {
         role: "user",
         content: [
           {
-            type: "input_file",
-            filename,
-            file_data: `data:application/pdf;base64,${pdfBuffer.toString("base64")}`,
+            type: "input_text",
+            text: `This is page 1 of a research paper. Read the image and return only the exact title of the paper.
+
+Do not return attribution text, copyright notices, submission notices, author names, affiliations, or headers.
+
+If the title is ambiguous, prefer the main large centered title text over any smaller notice text.
+
+Fallback heuristic title: ${fallbackTitle}`,
           },
           {
-            type: "input_text",
-            text: `Identify the exact title of this academic paper.
-
-Prioritize the title shown on page 1.
-Use the PDF rendering itself as the source of truth, and use these extracted signals only as backup context.
-
-Candidate high-visibility text blocks from the top of page 1:
-${topBlockText || "None"}
-
-First page text excerpt:
-${firstPageExcerpt}
-
-Fallback heuristic title:
-${fallbackTitle}
-
-Return only the exact paper title.`,
+            type: "input_image",
+            image_url: firstPageImage,
+            detail: "high",
           },
         ],
       },

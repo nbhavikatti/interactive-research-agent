@@ -1,6 +1,7 @@
 import pdfParse from "pdf-parse";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import { extractPaperTitle } from "@/lib/llm-client";
+import { renderFirstPageImage } from "@/lib/pdf-page-image";
 
 export interface ParsedPage {
   pageNum: number;
@@ -46,14 +47,12 @@ export async function parsePdf(
 
   const firstPageSignals = await extractFirstPageSignals(buffer, pages[0]?.text ?? "");
   const fallbackTitle = fallbackTitleFromSignals(firstPageSignals);
+  const firstPageImage = await renderFirstPageImage(buffer).catch(() => null);
 
-  const llmTitle = process.env.OPENAI_API_KEY
+  const llmTitle = process.env.OPENAI_API_KEY && firstPageImage
     ? await extractPaperTitle({
         fallbackTitle,
-        filename,
-        firstPageText: firstPageSignals.fullText,
-        pdfBuffer: buffer,
-        topBlocks: firstPageSignals.topBlocks,
+        firstPageImage,
       }).catch(() => null)
     : null;
 
