@@ -34,15 +34,22 @@ export async function POST(req: NextRequest) {
 
     const id = randomUUID();
     const buffer = Buffer.from(await file.arrayBuffer());
+    const firstPagePreviewBuffer = firstPageImage
+      ? decodeDataUrlImage(firstPageImage)
+      : null;
 
-    const [parsed, pdfBlobUrl] = await Promise.all([
+    const [parsed, pdfBlobUrl, firstPagePreviewUrl] = await Promise.all([
       parsePdf(buffer, file.name, firstPageImage),
       paperStore.savePdf(id, buffer),
+      firstPagePreviewBuffer
+        ? paperStore.saveFirstPagePreview(id, firstPagePreviewBuffer)
+        : Promise.resolve(null),
     ]);
 
     await paperStore.set(id, {
       id,
       filename: file.name,
+      firstPagePreviewUrl,
       pdfBlobUrl,
       title: parsed.title,
       pages: parsed.pages,
@@ -50,6 +57,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       paperId: id,
+      firstPagePreviewUrl: firstPagePreviewUrl
+        ? `/api/pdf-preview/${id}`
+        : null,
       title: parsed.title,
       pageCount: parsed.pages.length,
     });
@@ -59,4 +69,13 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+function decodeDataUrlImage(dataUrl: string): Buffer {
+  const match = dataUrl.match(/^data:image\/png;base64,(.+)$/);
+  if (!match) {
+    throw new Error("Invalid first-page image");
+  }
+
+  return Buffer.from(match[1], "base64");
 }

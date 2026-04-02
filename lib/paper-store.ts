@@ -9,6 +9,7 @@ export interface StoredPaper {
   id: string;
   filename: string;
   pdfBlobUrl: string;
+  firstPagePreviewUrl?: string | null;
   title: string;
   pages: StoredPaperPage[];
 }
@@ -21,11 +22,24 @@ function pdfPath(id: string) {
   return `papers/${id}/file.pdf`;
 }
 
+function previewPath(id: string) {
+  return `papers/${id}/first-page.png`;
+}
+
 export const paperStore = {
   async savePdf(id: string, buffer: Buffer): Promise<string> {
     const blob = await put(pdfPath(id), buffer, {
       access: "public",
       contentType: "application/pdf",
+      addRandomSuffix: false,
+    });
+    return blob.url;
+  },
+
+  async saveFirstPagePreview(id: string, buffer: Buffer): Promise<string> {
+    const blob = await put(previewPath(id), buffer, {
+      access: "public",
+      contentType: "image/png",
       addRandomSuffix: false,
     });
     return blob.url;
