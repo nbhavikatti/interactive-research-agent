@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Document, Page } from "react-pdf";
 import "@/lib/pdf-worker-setup";
 import { SelectionPopover } from "@/components/SelectionPopover";
@@ -34,6 +34,12 @@ export function PdfViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [surfaceWidth, setSurfaceWidth] = useState(900);
   const { selection, clearSelection } = useTextSelection(containerRef);
+  const documentOptions = useMemo(
+    () => ({
+      standardFontDataUrl: "/standard_fonts/",
+    }),
+    [],
+  );
 
   useEffect(() => {
     const surface = pageSurfaceRef.current;
@@ -115,6 +121,7 @@ export function PdfViewer({
       <div ref={containerRef} className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
         <Document
           file={pdfUrl}
+          options={documentOptions}
           loading={
             <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm">
               Loading page...
