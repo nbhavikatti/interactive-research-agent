@@ -515,6 +515,14 @@ function extractWordBoxes(
       }
 
       const tx = pdfjs.Util.transform(viewport.transform, item.transform);
+      const angle = Math.atan2(tx[1], tx[0]);
+
+      // Ignore strongly rotated margin/header text. Those items produce poor
+      // axis-aligned boxes and can leak into body-text selections.
+      if (Math.abs(angle) > Math.PI / 4) {
+        return [];
+      }
+
       const fontHeight = Math.hypot(tx[2], tx[3]);
       const left = tx[4];
       const top = tx[5] - fontHeight;
