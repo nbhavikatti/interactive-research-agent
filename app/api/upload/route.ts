@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const [parsed, pdfBlobUrl] = await Promise.all([
-      parsePdf(buffer),
+      parsePdf(buffer, file.name),
       paperStore.savePdf(id, buffer),
     ]);
 

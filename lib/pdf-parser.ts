@@ -24,7 +24,10 @@ interface CandidateLine {
   y: number;
 }
 
-export async function parsePdf(buffer: Buffer): Promise<ParsedPaper> {
+export async function parsePdf(
+  buffer: Buffer,
+  filename = "paper.pdf",
+): Promise<ParsedPaper> {
   const data = await pdfParse(buffer);
   const fullText = data.text ?? "";
 
@@ -47,9 +50,11 @@ export async function parsePdf(buffer: Buffer): Promise<ParsedPaper> {
   const llmTitle = process.env.OPENAI_API_KEY
     ? await extractPaperTitle({
         fallbackTitle,
+        filename,
         firstPageText: firstPageSignals.fullText,
+        pdfBuffer: buffer,
         topBlocks: firstPageSignals.topBlocks,
-      })
+      }).catch(() => null)
     : null;
 
   return {

@@ -2,6 +2,8 @@ import OpenAI from "openai";
 import { parseJsonResponse } from "@/lib/json-response-parser";
 
 interface ExtractPaperTitleInput {
+  pdfBuffer: Buffer;
+  filename: string;
   firstPageText: string;
   topBlocks: string[];
   fallbackTitle: string;
@@ -134,6 +136,8 @@ export async function generateStructuredAnalysis(
 }
 
 export async function extractPaperTitle({
+  pdfBuffer,
+  filename,
   firstPageText,
   topBlocks,
   fallbackTitle,
@@ -150,16 +154,29 @@ export async function extractPaperTitle({
   const firstPageExcerpt = firstPageText.slice(0, 6000);
 
   const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-5",
     input: [
       {
         role: "system",
         content:
-          "You identify the exact title of an academic paper from first-page PDF text. Return only the paper title text with no quotes, labels, markdown, or explanation. Ignore authors, affiliations, headers, conference names, dates, and section headings.",
+          "You identify the exact title of an academic paper from the provided PDF. Inspect the first page visually and use the PDF text as supporting context. Return only the paper title text with no quotes, labels, markdown, or explanation. Ignore authors, affiliations, headers, footers, conference names, dates, running heads, and section headings.",
       },
       {
         role: "user",
-        content: `Candidate high-visibility text blocks from the top of page 1:
+        content: [
+          {
+            type: "input_file",
+            filename,
+            file_data: `data:application/pdf;base64,${pdfBuffer.toString("base64")}`,
+          },
+          {
+            type: "input_text",
+            text: `Identify the exact title of this academic paper.
+
+Prioritize the title shown on page 1.
+Use the PDF rendering itself as the source of truth, and use these extracted signals only as backup context.
+
+Candidate high-visibility text blocks from the top of page 1:
 ${topBlockText || "None"}
 
 First page text excerpt:
@@ -169,6 +186,8 @@ Fallback heuristic title:
 ${fallbackTitle}
 
 Return only the exact paper title.`,
+          },
+        ],
       },
     ],
     max_output_tokens: 120,
