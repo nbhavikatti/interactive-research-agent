@@ -19,7 +19,7 @@ interface GenerateStructuredAnalysisResult {
 }
 
 const TITLE_MAX_OUTPUT_TOKENS = 600;
-const CROSS_PAPER_MAX_OUTPUT_TOKENS = 3000;
+const CROSS_PAPER_MAX_OUTPUT_TOKENS = 6000;
 
 export async function* streamResponseText(prompt: string): AsyncGenerator<string> {
   const client = new OpenAI({
