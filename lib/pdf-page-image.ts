@@ -2,6 +2,10 @@ import { createCanvas } from "canvas";
 
 export async function renderFirstPagePngBuffer(buffer: Buffer): Promise<Buffer> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.js");
+  pdfjs.GlobalWorkerOptions.workerSrc = require.resolve(
+    "pdfjs-dist/legacy/build/pdf.worker.js",
+  );
+
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(buffer),
     disableFontFace: true,
