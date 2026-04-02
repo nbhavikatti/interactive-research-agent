@@ -98,3 +98,20 @@ body {
   height: auto;
   max-width: 100%;
 }
+
+.react-pdf__Page__svg {
+  user-select: text !important;
+}
+
+.react-pdf__Page__svg svg {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  user-select: text;
+}
+
+.react-pdf__Page__svg text,
+.react-pdf__Page__svg tspan {
+  user-select: text;
+  cursor: text;
+}

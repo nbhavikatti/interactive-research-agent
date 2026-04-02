@@ -33,7 +33,6 @@ export function PdfViewer({
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [surfaceWidth, setSurfaceWidth] = useState(900);
-  const [textLayerRenderNonce, setTextLayerRenderNonce] = useState(0);
   const { selection, clearSelection } = useTextSelection(containerRef);
   const documentOptions = useMemo(
     () => ({
@@ -64,29 +63,6 @@ export function PdfViewer({
     setCurrentPage(1);
     clearSelection();
   }, [clearSelection, pdfUrl]);
-
-  useEffect(() => {
-    const fontSet = document.fonts;
-    if (!fontSet) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const rerenderTextLayer = () => {
-      if (!cancelled) {
-        setTextLayerRenderNonce((current) => current + 1);
-      }
-    };
-
-    void fontSet.ready.then(rerenderTextLayer);
-    fontSet.addEventListener?.("loadingdone", rerenderTextLayer);
-
-    return () => {
-      cancelled = true;
-      fontSet.removeEventListener?.("loadingdone", rerenderTextLayer);
-    };
-  }, [pdfUrl, currentPage]);
 
   useEffect(() => {
     if (initialPage && initialPage > 0) {
@@ -162,10 +138,11 @@ export function PdfViewer({
               <div ref={pageSurfaceRef} className="flex justify-center">
                 <Page
                   className="mx-auto w-fit"
-                  key={`${pdfUrl}-${currentPage}-${textLayerRenderNonce}`}
+                  key={`${pdfUrl}-${currentPage}`}
                   pageNumber={currentPage}
+                  renderMode="svg"
                   renderAnnotationLayer={false}
-                  renderTextLayer
+                  renderTextLayer={false}
                   width={pageWidth}
                 />
               </div>
