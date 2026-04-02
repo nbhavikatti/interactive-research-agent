@@ -118,7 +118,10 @@ Use exactly this structure:
 Rules:
 - Keep the response grounded in the provided content.
 - Mention uncertainties explicitly when evidence is thin rather than inventing details.
-- Return 4 to 6 insight objects.
+- Return exactly 3 insight objects.
+- Each insight must be meaningfully distinct from the others.
+- Do not split the same core theme into multiple insights with different wording.
+- If two candidate insights overlap substantially, merge them.
 - Include one paperSnapshots entry per paper.
 - Each insight must include 1 to 3 references.
 - Use exact paper ids, filenames, and titles from the input.
