@@ -175,7 +175,7 @@ Fallback heuristic title: ${fallbackTitle}`,
         ],
       },
     ],
-    max_output_tokens: 400,
+    max_output_tokens: 600,
   });
 
   const rawOutput = response.output_text?.trim() ?? "";
