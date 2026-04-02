@@ -101,8 +101,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Cross-paper analysis request failed", error);
+    const message =
+      error instanceof Error ? error.message : "Unknown cross-paper analysis error";
+
     return NextResponse.json(
-      { error: "Cross-paper analysis failed." },
+      { error: "Cross-paper analysis failed.", detail: message },
       { status: 500 },
     );
   }
