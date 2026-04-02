@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    const { parsed, rawText } = await generateStructuredAnalysis(prompt);
+    const { parsed, rawText, responseDebug } = await generateStructuredAnalysis(prompt);
     const normalized = normalizeCrossPaperAnalysis({
       raw: parsed,
       rawOutput: rawText,
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           debug: normalized.debug,
+          llmResponseDebug: responseDebug,
           error: "Could not parse the cross-paper analysis.",
         },
         { status: 502 },
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       debug: normalized.debug,
+      llmResponseDebug: responseDebug,
       result: normalized.result,
     });
   } catch (error) {

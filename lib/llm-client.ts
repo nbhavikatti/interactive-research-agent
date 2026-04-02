@@ -15,6 +15,7 @@ export interface ExtractPaperTitleResult {
 interface GenerateStructuredAnalysisResult {
   parsed: Record<string, unknown> | null;
   rawText: string;
+  responseDebug: Record<string, unknown>;
 }
 
 export async function* streamResponseText(prompt: string): AsyncGenerator<string> {
@@ -52,7 +53,7 @@ export async function generateStructuredAnalysis(
   const response = await client.responses.parse({
     model: "gpt-5",
     input: prompt,
-    max_output_tokens: 2800,
+    max_output_tokens: 4200,
     text: {
       format: {
         type: "json_schema",
@@ -127,14 +128,55 @@ export async function generateStructuredAnalysis(
     },
   });
 
-  const rawText = response.output_text ?? "";
+  const fallbackOutputText = response.output
+    .flatMap((item) =>
+      "content" in item && Array.isArray(item.content)
+        ? item.content.flatMap((contentItem) =>
+            "text" in contentItem && typeof contentItem.text === "string"
+              ? [contentItem.text]
+              : [],
+          )
+        : [],
+    )
+    .join("\n")
+    .trim();
+
+  const rawText = response.output_text?.trim() || fallbackOutputText;
   const parsed =
     (response.output_parsed as Record<string, unknown> | null | undefined) ??
     parseJsonResponse(rawText);
 
+  const responseDebug = {
+    id: response.id,
+    incompleteDetails: response.incomplete_details ?? null,
+    model: response.model,
+    output: response.output.map((item) => ({
+      id: item.id,
+      role: "role" in item ? item.role : null,
+      status: "status" in item ? item.status ?? null : null,
+      type: item.type,
+      content:
+        "content" in item && Array.isArray(item.content)
+          ? item.content.map((contentItem) => ({
+              text:
+                "text" in contentItem && typeof contentItem.text === "string"
+                  ? contentItem.text
+                  : null,
+              type: contentItem.type,
+            }))
+          : null,
+    })),
+    outputParsedPresent: Boolean(response.output_parsed),
+    outputText: response.output_text ?? "",
+    rawText,
+    status: response.status,
+    usage: response.usage ?? null,
+  };
+
   return {
     parsed,
     rawText,
+    responseDebug,
   };
 }
 
