@@ -18,6 +18,9 @@ interface GenerateStructuredAnalysisResult {
   responseDebug: Record<string, unknown>;
 }
 
+const TITLE_MAX_OUTPUT_TOKENS = 600;
+const CROSS_PAPER_MAX_OUTPUT_TOKENS = 3000;
+
 export async function* streamResponseText(prompt: string): AsyncGenerator<string> {
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -53,7 +56,7 @@ export async function generateStructuredAnalysis(
   const response = await client.responses.parse({
     model: "gpt-5",
     input: prompt,
-    max_output_tokens: 6000,
+    max_output_tokens: CROSS_PAPER_MAX_OUTPUT_TOKENS,
     text: {
       format: {
         type: "json_schema",
@@ -166,6 +169,7 @@ export async function generateStructuredAnalysis(
             }))
           : null,
     })),
+    configuredMaxOutputTokens: CROSS_PAPER_MAX_OUTPUT_TOKENS,
     outputParsedPresent: Boolean(response.output_parsed),
     outputText: response.output_text ?? "",
     rawText,
@@ -217,7 +221,7 @@ Fallback heuristic title: ${fallbackTitle}`,
         ],
       },
     ],
-    max_output_tokens: 600,
+    max_output_tokens: TITLE_MAX_OUTPUT_TOKENS,
   });
 
   const rawOutput = response.output_text?.trim() ?? "";
@@ -241,6 +245,7 @@ Fallback heuristic title: ${fallbackTitle}`,
             }))
           : null,
     })),
+    configuredMaxOutputTokens: TITLE_MAX_OUTPUT_TOKENS,
     outputText: response.output_text ?? "",
     status: response.status,
     usage: response.usage ?? null,
