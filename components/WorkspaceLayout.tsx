@@ -30,7 +30,7 @@ export function WorkspaceLayout({
           {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
         </div>
       </header>
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,58%)_minmax(0,42%)]">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,64%)_minmax(320px,36%)] xl:grid-cols-[minmax(0,70%)_minmax(340px,30%)]">
         <div className="min-h-0 overflow-auto bg-[#0b1728]">{left}</div>
         <div className="min-h-0 overflow-y-auto border-t border-slate-800 bg-[#07101d] lg:border-t-0 lg:border-l">
           {right}

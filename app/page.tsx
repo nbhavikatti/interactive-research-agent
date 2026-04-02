@@ -118,7 +118,7 @@ export default function Home() {
           </button>
         }
         left={
-          <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="grid h-full min-h-0 xl:grid-cols-[272px_minmax(0,1fr)]">
             <div className="border-b border-slate-800 bg-[#081120] p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
               <UploadedPapersPanel
                 activePaperId={activePaper?.id ?? null}

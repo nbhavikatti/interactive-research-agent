@@ -65,7 +65,7 @@ export function PdfViewer({
     }
   }, [clearSelection, initialPage]);
 
-  const pageWidth = Math.max(Math.min(surfaceWidth - 48, 900), 320);
+  const pageWidth = Math.max(Math.min(surfaceWidth - 40, 1100), 320);
 
   return (
     <div className="flex h-full flex-col bg-[#eef1f5]">
@@ -112,7 +112,7 @@ export function PdfViewer({
         ) : null}
       </div>
 
-      <div ref={containerRef} className="min-h-0 flex-1 overflow-auto p-6">
+      <div ref={containerRef} className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
         <Document
           file={pdfUrl}
           loading={
@@ -126,7 +126,7 @@ export function PdfViewer({
             setCurrentPage((page) => Math.min(page, loadedPages));
           }}
         >
-          <div ref={pageSurfaceRef} className="mx-auto flex max-w-[980px] justify-center">
+          <div ref={pageSurfaceRef} className="mx-auto flex w-full max-w-[1180px] justify-center">
             <div className="rounded-[24px] bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] ring-1 ring-gray-200">
               <Page
                 className="mx-auto w-fit"
