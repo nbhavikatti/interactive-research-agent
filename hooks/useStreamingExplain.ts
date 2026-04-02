@@ -47,55 +47,19 @@ export function useStreamingExplain() {
         body: JSON.stringify({ paperId, selectedText, pageNumber }),
       });
 
-      if (!response.ok || !response.body) {
+      if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.error ?? "Explanation request failed.");
       }
+      const payload = (await response.json()) as {
+        result?: ExplanationResult;
+        llmResponseDebug?: { rawText?: string; outputText?: string };
+      };
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let serverResult: ExplanationResult | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split("\n\n");
-        buffer = events.pop() ?? "";
-
-        for (const event of events) {
-          const lines = event
-            .split("\n")
-            .filter((line) => line.startsWith("data:"))
-            .map((line) => line.replace(/^data:\s?/, ""));
-
-          for (const line of lines) {
-            if (line === "[DONE]") continue;
-
-            let parsed: Record<string, unknown>;
-            try {
-              parsed = JSON.parse(line);
-            } catch {
-              continue;
-            }
-
-            if (parsed.error) {
-              throw new Error(parsed.error as string);
-            }
-
-            // Server sends the parsed result as the final event
-            if (parsed.result) {
-              serverResult = parsed.result as ExplanationResult;
-            }
-
-            if (parsed.text) {
-              setRawResponse((prev) => prev + (parsed.text as string));
-            }
-          }
-        }
-      }
+      const serverResult = payload.result ?? null;
+      setRawResponse(
+        payload.llmResponseDebug?.rawText ?? payload.llmResponseDebug?.outputText ?? "",
+      );
 
       if (serverResult?.explanation && serverResult?.diagram) {
         setResult(serverResult);

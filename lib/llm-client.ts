@@ -18,8 +18,15 @@ interface GenerateStructuredAnalysisResult {
   responseDebug: Record<string, unknown>;
 }
 
+interface GenerateExplanationResult {
+  parsed: Record<string, unknown> | null;
+  rawText: string;
+  responseDebug: Record<string, unknown>;
+}
+
 const TITLE_MAX_OUTPUT_TOKENS = 600;
 const CROSS_PAPER_MAX_OUTPUT_TOKENS = 6000;
+const EXPLAIN_MAX_OUTPUT_TOKENS = 3000;
 
 export async function* streamResponseText(prompt: string): AsyncGenerator<string> {
   const client = new OpenAI({
@@ -44,6 +51,106 @@ export async function* streamExplanation(
   prompt: string,
 ): AsyncGenerator<string> {
   yield* streamResponseText(prompt);
+}
+
+export async function generateExplanation(
+  prompt: string,
+): Promise<GenerateExplanationResult> {
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const response = await client.responses.parse({
+    model: "gpt-5",
+    input: prompt,
+    max_output_tokens: EXPLAIN_MAX_OUTPUT_TOKENS,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "paper_explanation",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["explanation", "diagram"],
+          properties: {
+            explanation: {
+              type: "object",
+              additionalProperties: false,
+              required: ["summary", "coreIdea", "intuition", "breakdown"],
+              properties: {
+                summary: { type: "string" },
+                coreIdea: { type: "string" },
+                intuition: { type: "string" },
+                breakdown: { type: "string" },
+              },
+            },
+            diagram: {
+              type: "object",
+              additionalProperties: false,
+              required: ["type", "code"],
+              properties: {
+                type: { type: "string" },
+                code: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const fallbackOutputText = response.output
+    .flatMap((item) =>
+      "content" in item && Array.isArray(item.content)
+        ? item.content.flatMap((contentItem) =>
+            "text" in contentItem && typeof contentItem.text === "string"
+              ? [contentItem.text]
+              : [],
+          )
+        : [],
+    )
+    .join("\n")
+    .trim();
+
+  const rawText = response.output_text?.trim() || fallbackOutputText;
+  const parsed =
+    (response.output_parsed as Record<string, unknown> | null | undefined) ??
+    parseJsonResponse(rawText);
+
+  const responseDebug = {
+    id: response.id,
+    incompleteDetails: response.incomplete_details ?? null,
+    model: response.model,
+    output: response.output.map((item) => ({
+      id: item.id,
+      role: "role" in item ? item.role : null,
+      status: "status" in item ? item.status ?? null : null,
+      type: item.type,
+      content:
+        "content" in item && Array.isArray(item.content)
+          ? item.content.map((contentItem) => ({
+              text:
+                "text" in contentItem && typeof contentItem.text === "string"
+                  ? contentItem.text
+                  : null,
+              type: contentItem.type,
+            }))
+          : null,
+    })),
+    configuredMaxOutputTokens: EXPLAIN_MAX_OUTPUT_TOKENS,
+    outputParsedPresent: Boolean(response.output_parsed),
+    outputText: response.output_text ?? "",
+    rawText,
+    status: response.status,
+    usage: response.usage ?? null,
+  };
+
+  return {
+    parsed,
+    rawText,
+    responseDebug,
+  };
 }
 
 export async function generateStructuredAnalysis(

@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { streamExplanation } from "@/lib/llm-client";
-import { parseJsonResponse } from "@/lib/json-response-parser";
+import { generateExplanation } from "@/lib/llm-client";
 import { paperStore } from "@/lib/paper-store";
 import { buildExplainPrompt } from "@/lib/prompt-builder";
 import { rateLimit } from "@/lib/rate-limit";
@@ -41,47 +40,38 @@ export async function POST(req: NextRequest) {
       pageNumber,
     });
 
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        let accumulated = "";
-        try {
-          for await (const chunk of streamExplanation(prompt)) {
-            accumulated += chunk;
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`),
-            );
-          }
+    const result = await generateExplanation(prompt);
 
-          const parsed = parseJsonResponse(accumulated);
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ result: parsed })}\n\n`,
-            ),
-          );
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: "LLM request failed" })}\n\n`,
-            ),
-          );
-          controller.close();
-        }
-      },
-    });
+    if (!result.parsed) {
+      return new Response(
+        JSON.stringify({
+          error: "Could not parse the explanation.",
+          debug: {
+            rawOutputPreview: result.rawText.slice(0, 1200),
+          },
+          llmResponseDebug: result.responseDebug,
+        }),
+        { status: 500 },
+      );
+    }
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
+    return new Response(
+      JSON.stringify({
+        result: result.parsed,
+        llmResponseDebug: result.responseDebug,
+      }),
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid request payload" }), {
-      status: 400,
+    );
+  } catch (errorValue) {
+    const message =
+      errorValue instanceof Error ? errorValue.message : "Explain request failed.";
+
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
     });
   }
 }
