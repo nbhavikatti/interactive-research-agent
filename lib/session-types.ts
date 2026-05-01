@@ -1,5 +1,5 @@
 export const MAX_SESSION_PAPERS = 5;
-export const MIN_ANALYSIS_PAPERS = 2;
+export const MIN_ANALYSIS_PAPERS = 1;
 
 export interface SessionPaper {
   id: string;

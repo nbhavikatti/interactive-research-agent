@@ -16,7 +16,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 export function UploadZone({
   onFileSelected,
   disabled = false,
-  helperText = "Upload up to 5 research papers and we will provide cross-paper insights and analysis.",
+  helperText = "Upload up to 5 research papers and we will analyze a single paper or synthesize themes across multiple papers.",
   supportingText = "PDF only, up to 50MB each",
 }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);

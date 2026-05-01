@@ -59,6 +59,7 @@ Important rules for the Mermaid diagram:
 }
 
 export function buildCrossPaperPrompt(input: CrossPaperPromptInput): string {
+  const paperCount = input.papers.length;
   const papersContext = input.papers
     .map((paper) => {
       const excerpts = paper.pages
@@ -74,9 +75,13 @@ ${excerpts}`;
     })
     .join("\n\n");
 
-  return `You are an expert research synthesis assistant. A user uploaded multiple research papers and wants cross-paper insights, comparisons, themes, and idea generation.
+  return `You are an expert research synthesis assistant. A user uploaded ${paperCount} research ${
+    paperCount === 1 ? "paper" : "papers"
+  } and wants a concise synthesis grounded in the provided excerpts.
 
 Use the paper excerpts below to produce a concise but thoughtful synthesis.
+If there is only one paper, focus on its core claims, themes, tensions, and notable ideas.
+If there are multiple papers, include cross-paper comparisons, shared themes, disagreements, and idea generation where supported.
 
 ${papersContext}
 
@@ -110,7 +115,7 @@ Use exactly this structure:
       "paperId": "paper id from input",
       "title": "paper title",
       "focus": "1-2 sentence summary of the paper's main focus",
-      "notableAngle": "What this paper uniquely contributes relative to the others"
+      "notableAngle": "What this paper uniquely contributes relative to the others, or what most stands out if only one paper was uploaded"
     }
   ]
 }
@@ -118,7 +123,7 @@ Use exactly this structure:
 Rules:
 - Keep the response grounded in the provided content.
 - Mention uncertainties explicitly when evidence is thin rather than inventing details.
-- Return exactly 3 insight objects.
+- Return 1 to 3 insight objects, depending on how many distinct grounded insights the excerpts support.
 - Each insight must be meaningfully distinct from the others.
 - Do not split the same core theme into multiple insights with different wording.
 - If two candidate insights overlap substantially, merge them.

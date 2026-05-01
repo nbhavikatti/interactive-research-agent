@@ -308,9 +308,9 @@ export default function Home() {
                 Interactive Research Agent
               </h1>
               <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
-                Upload up to 5 research papers and we will provide cross-paper
-                insights, comparisons, themes, and idea generation across the
-                session.
+                Upload up to 5 research papers and we will analyze a single
+                paper or synthesize insights, comparisons, themes, and ideas
+                across the session.
               </p>
             </div>
 
@@ -327,7 +327,7 @@ export default function Home() {
               ) : (
                 <UploadZone
                   disabled={!canUploadMore}
-                  helperText="Upload up to 5 research papers and we will provide cross-paper insights and analysis."
+                  helperText="Upload up to 5 research papers and we will analyze a single paper or synthesize insights across multiple papers."
                   onFileSelected={(file, firstPageImage) =>
                     void handleFileSelected(file, firstPageImage)
                   }
@@ -338,8 +338,7 @@ export default function Home() {
 
             <div className="mt-6 flex flex-col items-center gap-4 text-center">
               <p className="text-sm text-slate-400">
-                Upload at least {MIN_ANALYSIS_PAPERS} papers to unlock cross-paper
-                analysis.
+                Upload at least {MIN_ANALYSIS_PAPERS} paper to start analysis.
               </p>
               <button
                 className="rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"

@@ -23,6 +23,8 @@ export function CrossPaperInsightsPanel({
   onReferenceSelect,
   onRetry,
 }: CrossPaperInsightsPanelProps) {
+  const isSinglePaper = papers.length === 1;
+
   if (state === "loading") {
     return (
       <div className="space-y-6 p-6">
@@ -62,14 +64,17 @@ export function CrossPaperInsightsPanel({
       <div className="flex min-h-full items-center justify-center p-6">
         <div className="max-w-md rounded-[32px] border border-slate-800 bg-slate-950/80 p-8 text-center shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
-            Cross-paper mode
+            {isSinglePaper ? "Paper analysis" : "Cross-paper mode"}
           </p>
           <h2 className="mt-3 text-2xl font-semibold text-slate-100">
-            Compare themes across the session
+            {isSinglePaper
+              ? "Analyze the uploaded paper"
+              : "Compare themes across the session"}
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-400">
-            This pane now focuses on verifiable cross-paper claims, with source
-            references you can open in the middle viewer.
+            {isSinglePaper
+              ? "This pane focuses on grounded claims and source references you can open in the middle viewer."
+              : "This pane now focuses on verifiable cross-paper claims, with source references you can open in the middle viewer."}
           </p>
         </div>
       </div>
@@ -186,17 +191,22 @@ export function CrossPaperInsightsPanel({
 }
 
 function Header({ papers }: { papers: SessionPaper[] }) {
+  const isSinglePaper = papers.length === 1;
+
   return (
     <section className="rounded-[32px] border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.14),_transparent_35%),linear-gradient(135deg,_rgba(15,23,42,0.95),_rgba(2,6,23,0.95))] p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
         Analysis
       </p>
       <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50">
-        Cross-paper insights for {papers.length} uploaded papers
+        {isSinglePaper
+          ? "Analysis for 1 uploaded paper"
+          : `Cross-paper insights for ${papers.length} uploaded papers`}
       </h1>
       <p className="mt-3 text-sm leading-6 text-slate-400">
-        Each claim includes source references so you can open the supporting
-        paper in the middle pane and verify it directly.
+        {isSinglePaper
+          ? "Each claim includes source references so you can open the supporting passage in the middle pane and verify it directly."
+          : "Each claim includes source references so you can open the supporting paper in the middle pane and verify it directly."}
       </p>
     </section>
   );
